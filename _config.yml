@@ -1,9 +1,9 @@
 ###########
 # site.title
 
-title: ET-Jekyll Theme
-description: A minimal Jekyll theme inspired by Tufte CSS
-url: "https://et-jekyll.netlify.app"
+title: Waqas Younas' Blog
+description: A blog where I talks about writing, technology, and other topics that interest me.
+url: https://wyounas.github.io
 host: 0.0.0.0
 
 
@@ -29,7 +29,7 @@ baseurl: ""
 permalink: pretty
 timezone: America/New_York
 future: false
-
+math: true
 exclude:
 - README.md
 - LICENSE.md
