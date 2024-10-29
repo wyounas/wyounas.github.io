@@ -1,16 +1,17 @@
 ###########
 # site.title
 
-title: ET-Jekyll Theme
-description: A minimal Jekyll theme inspired by Tufte CSS
-url: "https://et-jekyll.netlify.app"
-host: 0.0.0.0
-
+title: Waqas Younas' blog
+description: Welcome to Waqas' blog
+url: "wyounas.github.io"
+host: localhost
 
 #########################
 # more settings
 
 markdown: kramdown
+
+math_engine: mathjax
 
 compress_html:
   clippings: all
