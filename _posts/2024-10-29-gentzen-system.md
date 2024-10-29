@@ -1,6 +1,6 @@
 ---
 layout: post
-title:  "The Beautiful Simplicity of the Gentzen System: A Deductive Framework"
+title:  "The Beautiful Simplicity of the Gentzen System"
 date: 2024-10-29
 categories: cs
 math: true
@@ -9,11 +9,11 @@ math: true
 Gentzen system, created by German mathematician Gerhard Gentzen, is a deductive system which
 can be used to prove propositional formulas. I recently learned about it while I was reading Ben-Ari's fantastic book on mathematical logic [1] and I like its simplicity.  
 
-Why should we care about the Gentzen system? Let's say you're a programmer, why should you care? Fair question. 
+Should we care about the Gentzen system? Let's say you're a programmer, why should you care about logic or mathematical reasoning? 
 
-I recently started learning more about mathematical logic, and I’ve realized that, just like writing can clarify your thoughts, formal mathematical can bring coherence to your thinking. If your arguments aren’t logically sound, you won’t be able to prove what you set out to prove—mathematical reasoning helps you construct those logically sound arguments.
+I recently started learning more about mathematical logic, and I’ve realized that, just as writing can clarify your thoughts, formal mathematical reasoning can bring coherence to your thinking. If parts of your reasoning lack logical soundness, you won’t be able to construct a coherent argument as a whole—mathematical reasoning helps prevent this.
 
-I’ve been programming for a while now, mostly self-taught, and I’ve observed that while learning formalism isn’t necessary 
+I’ve been programming for a while now, mostly self-taught, and I’ve observed that while learning mathematical formalism isn’t necessary 
 for most programming jobs, it definitely helps you think more carefully about the correctness 
 of your code. It helps you reason through problems with greater precision.
 
@@ -25,7 +25,7 @@ on the day of the robbery, and you later also find a written receipt of the same
 to the house's owner. Now, by presenting an irrefutable truth and supporting evidence you can establish the claim of robbery.
 
 Deductive systems work the same way. You establish a truth using statements assumed to be true, called axioms and you 
-also use some inference rules to support your claim. The Gentzen system is remarkably simple. It offers just one axiom and a few rules of 
+also use some inference rules to support your claim. The Gentzen system is remarkably simple in that it offers just one axiom and a few rules of 
 inference, yet with these, you can prove complex propositional fomrulas. There’s a certain beauty in seeing a 
 simple system—built on a single axiom and a handful of rules—solving complex tasks with unshakable logical coherence.
 
@@ -65,7 +65,7 @@ Let’s look at two $ \alpha $ inference rules as we will use these both in a pr
 two $ \beta $ formulas. Here is one inference rule we'll use in a proof below. 
     - If you have $ \neg B1 $ and $ \neg B2 $, then you can write them as $ \neg (B1 \lor B2) $.
 
-Now let's try to do a proof using the above axiom and inference rules.
+Now, let’s try to construct a proof using the above axiom and inference rules.
 
 We want to prove $ (p \lor q) \rightarrow (q \lor p) $ using the Gentzen system.
 
@@ -85,7 +85,7 @@ For p, we apply the axiom, giving us both $ p $ and $ \neg p $. We then combine 
 from the second step. According to the $ \beta $ inference rule, if we have $ \neg B1 $ and $ \neg B2 $, we can combine them into $ \neg (B1 \lor B2) $. 
 So, we treat $ \neg p $ as B1 and $ \neg q $ as B2. Applying the rule gives us $ \neg (p \lor q) $. The result of this third step is $ \neg (p \lor q) $, with p and q carrying over from the first two steps. Now, to explain the carryover: when we use $ \neg p $ and $ \neg q $ to 
 form $ \neg (p \lor q) $, the remaining elements, $ p $ and $ q $, from both steps are combined with $ \neg (p \lor q) $. Since we are working with sets, 
-we only keep unique elements, so the result is $ \neg (p \lor q), p, q $.
+we only keep unique elements, so the outcome of previous two steps is $ \neg (p \lor q), p, q $.
 
 
 4. In this step, we apply an $ \alpha $ rule. According to this rule, if we have A1 and A2, we can combine them into $ A1 \lor A2 $. 
@@ -96,7 +96,7 @@ From step 3, we have $ q $ and $ p $. Applying the alpha rule to these two propo
 which says if we have $ \neg A1 $ and $ A2 $, we can form $ A1 \rightarrow A2 $ (A1 implies A2). In step 4, we have $ \neg (p \lor q) $ 
 as $ \neg A1 $ and $ (q \lor p) $ as $ A2 $. Using this rule, we arrive at $ (p \lor q) \rightarrow (q \lor p) $, which is exactly what we set out to prove. Voila!
 
-Here is a brief summary of the above steps. In the first two steps of the proof below, we start with axioms. Then, in the third step, we apply the $ \beta $ inference rule on the axioms (the outcome of the first and second step). Then, on the result of the third step, we apply an $ \alpha $ inference rule. Finally, on the outcome of the fourth step, we apply another $ \alpha $ rule, and we are be able to prove what we set out to prove.
+Here is a brief summary of the above steps. In the first two steps of the proof below, we start with axioms. Then, in the third step, we apply the $ \beta $ inference rule on the the outcome of the first and second step. Then, on the result of the third step, we apply an $ \alpha $ inference rule. Finally, on the outcome of the fourth step, we apply another $ \alpha $ rule, and we are be able to prove what we set out to prove.
 
 At first, I didn't understand this by just reading it—it seemed too clever (as the author also hinted that it seemed clever). I had to solve it a couple of times using pen and paper.
 
@@ -107,13 +107,11 @@ This can also be presented in the tree form. In the screenshot below, the top no
 There is an inexplicable beauty in the idea that you start with only one established truth and a few inference rules, and using them, you can prove complex propositional formulas.
 
 I believe the principles of deductive systems can be applied to computer programming. Many of the skilled programmers 
-I’ve worked with approach problems by understanding things at their most fundamental level—starting with first principles. 
-They firmly grasp the core "axioms" of the system, and then reason their way up. They rarely violate the system’s properties, 
+I’ve worked with approach problems or systems by understanding things at their most fundamental level—starting with first principles. 
+They firmly grasp the core "axioms" of the system they are working on, and then reason their way up. They rarely violate the system’s properties, 
 and when anomalies arise, they can spot them easily.
 
-This approach is essential when dealing with complex systems. Without a solid foundational understanding, 
-you develop a shaky intuition that won’t hold up when facing tough challenges, especially under time pressure. I think we 
-can learn from deductive systems like Gentzen to build this same foundational understanding when working with complex codebases.
+I feel this approach is crucial when working with complex systems. Without a strong foundational understanding, your intuition becomes unreliable and can fail you, especially under time pressure. We can take inspiration from deductive systems like Gentzen to build this foundational understanding when working with codebases at the workplace.
 
 I think this idea connects to other fields, like technical writing, business writing, or even essays. Great writers build their case 
 on solid "axioms" and strong inferences. As a writer, if the picture you paint for your readers is made up of points that are hard 
