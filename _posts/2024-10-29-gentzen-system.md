@@ -7,11 +7,11 @@ math: true
 ---
 
 Gentzen system, created by German mathematician Gerhard Gentzen, is a deductive system which
-can be used to prove propositional formulas. I recently learned about it while I was reading Ben-Ari's fantastic book on mathematical logic [1]. 
+can be used to prove propositional formulas. I recently learned about it while I was reading Ben-Ari's fantastic book on mathematical logic [1] and I like its simplicity.  
 
 Why should we care about the Gentzen system? Let's say you're a programmer, why should you care? Fair question. 
 
-I recently started learning mathematical logic, and I’ve realized that, just like writing can clarify your thoughts, formal mathematical reasoning brings coherence to your thinking. If your arguments aren’t logically sound, you won’t be able to prove what you set out to prove—mathematical reasoning helps you construct those logically sound arguments.
+I recently started learning more about mathematical logic, and I’ve realized that, just like writing can clarify your thoughts, formal mathematical can bring coherence to your thinking. If your arguments aren’t logically sound, you won’t be able to prove what you set out to prove—mathematical reasoning helps you construct those logically sound arguments.
 
 I’ve been programming for a while now, mostly self-taught, and I’ve observed that while learning formalism isn’t necessary 
 for most programming jobs, it definitely helps you think more carefully about the correctness 
@@ -25,7 +25,7 @@ on the day of the robbery, and you later also find a written receipt of the same
 to the house's owner. Now, by presenting an irrefutable truth and supporting evidence you can establish the claim of robbery.
 
 Deductive systems work the same way. You establish a truth using statements assumed to be true, called axioms and you 
-also use some inference rules to support your claim. The Gentzen system is one such system, and it’s remarkably simple. It offers just one axiom and a few rules of 
+also use some inference rules to support your claim. The Gentzen system is remarkably simple. It offers just one axiom and a few rules of 
 inference, yet with these, you can prove complex propositional fomrulas. There’s a certain beauty in seeing a 
 simple system—built on a single axiom and a handful of rules—solving complex tasks with unshakable logical coherence.
 
@@ -50,15 +50,15 @@ And now the axiom and a few words about inference rules.
 **The Axiom**: Gentzen system starts with only one axiom: a complementary pair, e.g., $ p $ and $ \neg p $. That's the only axiom in the Gentzen system. 
 
 **The Inference Rules**: The system also provides inference rules. These rules, alongside the one axiom, allow us to prove new things. 
-There are two types of inference rules: $ \alpha $ and $ \beta $. Here are some details about each of them:
+There are two types of inference rules: $ \alpha $ (alpha) and $ \beta $ (beta). Here are some details about each of them:
 
 - $ \alpha $ inference rules: Think of these rules as ways to shape two logical formulas into a propositional formula. 
-Let's say you have two propositional formulas, $ A1 $ and $ A2 $, then you can combine them with a single $ \alpha $ formula. 
+Let's say you have two propositional formulas, $ A1 $ and $ A2 $, then you can combine them into a single $ \alpha $ formula. 
 There are a few $ \alpha $ rules, but for simplicity, I'm not including them all here—they are all in Ben-Ari's book. 
 Let’s look at two $ \alpha $ inference rules as we will use these both in a proof below. 
 
     - If you have two formulas, $ A1 $ and $ A2 $, then you can write them as $ A1 \lor A2 $. 
-    - If you have $ \neg A1 $ and $ A2 $, then you can write them as $ A1 \rightarrow A2 $.
+    - If you have $ \neg A1 $ and $ A2 $, then you can write them as $ A1 \rightarrow A2 $ (A1 implies A2).
 
 
 - $ \beta $ inference rules: There are also a few $ \beta $ rules. Like $ \alpha $ rules, you can use them to simplify 
@@ -69,7 +69,7 @@ Now let's try to do a proof using the above axiom and inference rules.
 
 We want to prove $ (p \lor q) \rightarrow (q \lor p) $ using the Gentzen system.
 
-Basically, you go step by step, using the outcome of each previous step to yield the next step, eventually leading to the proof.
+Basically, in such proofs, you proceed step by step, using the outcome of each step to derive the next one, eventually leading to the proof.
 
 Prove: $ (p \lor q) \rightarrow (q \lor p) $
 
@@ -108,7 +108,7 @@ There is an inexplicable beauty in the idea that you start with only one establi
 
 I believe the principles of deductive systems can be applied to computer programming. Many of the skilled programmers 
 I’ve worked with approach problems by understanding things at their most fundamental level—starting with first principles. 
-They first grasp the core "axioms" of the system, and then reason their way up. They rarely violate the system’s properties, 
+They firmly grasp the core "axioms" of the system, and then reason their way up. They rarely violate the system’s properties, 
 and when anomalies arise, they can spot them easily.
 
 This approach is essential when dealing with complex systems. Without a solid foundational understanding, 
@@ -119,8 +119,7 @@ I think this idea connects to other fields, like technical writing, business wri
 on solid "axioms" and strong inferences. As a writer, if the picture you paint for your readers is made up of points that are hard 
 to refute, it’s difficult for the readers not to be convinced. Good writing leaves little room for logical flaws.  
 
-Creating a system with just one axiom and a few inference rules that can prove complex propositional formulas is not only a 
-display of beauty but also a testament to remarkable logical coherence. This kind of elegance inspires us to use such systems 
+Creating a system with just one axiom and a few inference rules that can prove complex propositional formulas is a sign of elegance. This kind of elegance inspires us to use such systems 
 as a framework for learning and mastering complexity in other fields.
 
 ### References:
