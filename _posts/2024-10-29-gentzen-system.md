@@ -19,20 +19,21 @@ of your code. It helps you reason through problems with greater precision.
 
 Now let's dive into the Gentzen system, starting with a scenario.
 
-Imagine you're a detective trying to solve a robbery. You need to prove that a certain person robbed the house. 
-You assemble truths to establish the robbery. For example, you find someone entering the house on a video camera 
-on the day of the robbery, and you later also find a written receipt of the same person selling items that belong 
-to the house's owner. Now, by presenting an irrefutable truth and supporting evidence you can establish the claim of robbery.
+Imagine you’re a detective trying to solve a robbery. To prove that a certain person committed the crime, you 
+gather and connect key pieces of evidence. You see this person entering the house on a video camera on the day of 
+the robbery, and you later find a receipt showing them selling items belonging to the homeowner. While real 
+detective work is rarely this clear-cut, this simplified example highlights the deductive process of assembling truths 
+and making logical inferences to build a case. In a similar way, a deductive system like the Gentzen system 
+starts from basic truths and uses logical rules to reach sound conclusions.
 
-Deductive systems work the same way. You establish a truth using statements assumed to be true, called axioms and you 
-also use some inference rules to support your claim. The Gentzen system is remarkably simple in that it offers just one axiom and a few rules of 
-inference, yet with these, you can prove complex propositional fomrulas. There’s a certain beauty in seeing a 
-simple system—built on a single axiom and a handful of rules—solving complex tasks with unshakable logical coherence.
+In a deductive system, you start with basic statements assumed to be true, known as axioms, and you also apply inference rules 
+to build a logical case. The Gentzen system stands out for its simplicity: it has just one axiom and a 
+few inference rules, yet it can prove complex formulas. There’s a certain beauty in seeing how such a simple 
+setup—just one axiom and a few rules—can tackle complex problems with logical precision.
 
 **Gentzen’s Genius: A Single Axiom and a Few Inference Rules**
 
-For me, what makes the Gentzen System is its minimalism. Some logical systems come with a long list of axioms 
-and complicated rules to prove new things. Gentzen system’s approach is surprisingly simple: one axiom and just
+For me, what makes the Gentzen System elegant is its minimalism. Gentzen system’s approach is surprisingly simple: one axiom and just
  a handful of inference rules. And then you can use it to prove complex propositional formulas.
 
 Let's see how Gentzen system can be used to prove a propositional formula 
@@ -106,19 +107,14 @@ This can also be presented in the tree form. In the screenshot below, the top no
 
 There is an inexplicable beauty in the idea that you start with only one established truth and a few inference rules, and using them, you can prove complex propositional formulas.
 
-I believe the principles of deductive systems can be applied to computer programming. Many of the skilled programmers 
-I’ve worked with approach problems or systems by understanding things at their most fundamental level—starting with first principles. 
-They firmly grasp the core "axioms" of the system they are working on, and then reason their way up. They rarely violate the system’s properties, 
-and when anomalies arise, they can spot them easily.
+Creating a system with just one axiom and a few inference rules that can prove complex propositional formulas is a sign of elegance. 
+The idea that we can take basic truths and use them to prove more complex things has a certain elegance. The idea that we 
+can discipline our thinking in steps, with each rule application or inference bringing us closer to our goal while 
+maintaining a coherent structure, also embodies elegance. This kind of elegance can inspire us to learn and master complexity in other fields.
 
-I feel this approach is crucial when working with complex systems. Without a strong foundational understanding, your intuition becomes unreliable and can fail you, especially under time pressure. We can take inspiration from deductive systems like Gentzen to build this foundational understanding when working with codebases at the workplace.
 
-I think this idea connects to other fields, like technical writing, business writing, or even essays. Great writers build their case 
-on solid "axioms" and strong inferences. As a writer, if the picture you paint for your readers is made up of points that are hard 
-to refute, it’s difficult for the readers not to be convinced. Good writing leaves little room for logical flaws.  
+*Please [email](mailto:waqas.younas@gmail.com) or [tweet](https://x.com/wyounas) with questions, ideas, or corrections.*
 
-Creating a system with just one axiom and a few inference rules that can prove complex propositional formulas is a sign of elegance. This kind of elegance inspires us to use such systems 
-as a framework for learning and mastering complexity in other fields.
 
 ### References:
 
