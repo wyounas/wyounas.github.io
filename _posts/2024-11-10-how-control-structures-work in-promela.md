@@ -41,5 +41,8 @@ A for-statement was also introduced in version 6 of SPIN, allowing us to write a
 
 <img loading="lazy" src="{{ site.baseurl }}/images/2024-11-10-control-structures-promela/six.png" alt="control structure" width="500" />
 
+*Please [email](mailto:waqas.younas@gmail.com) or [tweet](https://x.com/wyounas) with questions, ideas, or corrections.*
+
+
 ### Note:  
 To run a PROMELA program, save the code in a file with a .pml extension and run the program from the command line using `spin file.pml`.
