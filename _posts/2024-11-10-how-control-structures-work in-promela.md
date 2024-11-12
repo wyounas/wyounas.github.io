@@ -19,7 +19,7 @@ Now, let’s explore how nondeterminism works. Consider:
 
 In this case, when two or more guards evaluate to true, the statements associated with either guard could be executed. If you run the program multiple times, sometimes "Greater than two" is printed, and other times "Greater than three". To run the program, save the code in a file named file.pml and run it with the command “spin file.pml”. The choice is made nondeterministically.
 
-Interestingly, this nondeterminism can be used to generate random numbers in PROMELA. In the program below, the value of "n" is determined randomly. Running the program several times will show that a different value is chosen for "n" each time.
+Interestingly, this nondeterminism can be used to generate random numbers in PROMELA. In the program below, the value of "n" is determined nondeterministically. Running the program several times will show that a different value is chosen for "n" each time.
 
 <img loading="lazy" src="{{ site.baseurl }}/images/2024-11-10-control-structures-promela/three.png" alt="control structure" width="500" />
 
