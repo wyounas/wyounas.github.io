@@ -37,7 +37,7 @@ Now, let’s take a look at looping structures in PROMELA. One of these is the d
 
 <img loading="lazy" src="{{ site.baseurl }}/images/2024-11-10-control-structures-promela/five.png" alt="control structure" width="500" />
 
-The loop continues to run until the value of 'n' reaches 10, at which point it breaks out. The guard selection rules work the same way as they do in an if-statement: if multiple guards in a loop evaluate to true, SPIN will select one nondeterministically. If all guards evaluate to false, the execution process will block.
+The loop continues to run until the value of 'n' reaches 10, at which point it breaks out. The guard selection rules work the same way as they do in an if-statement. If multiple guards in a loop evaluate to true, SPIN will select one nondeterministically. If all guards evaluate to false, the execution process will block.
 
 The keyword "else" can be used as a guard in a selection or repetition structure, and it defines a condition that is true only if all other guards evaluate to false within the same structure. Let’s look at how it can be used:
 
