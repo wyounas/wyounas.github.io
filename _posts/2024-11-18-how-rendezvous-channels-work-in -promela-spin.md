@@ -1,6 +1,6 @@
 ---
 layout: post
-title:  "How Rendezvous Channels Work in PROMELA"
+title:  "How Rendezvous Channels Work in PROMELA (SPIN)"
 date: 2024-11-18
 categories: spin, model-checking, formal-methods
 ---
