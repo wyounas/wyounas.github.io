@@ -1,6 +1,6 @@
 ---
 layout: post
-title:  "How Control Structures Work in PROMELA"
+title:  "How Control Structures Work in PROMELA (SPIN)"
 date: 2024-11-10
 categories: spin, model-checking, formal-methods
 ---
