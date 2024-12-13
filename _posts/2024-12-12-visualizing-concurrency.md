@@ -2,7 +2,7 @@
 layout: post
 title:  "Visualizing Concurrency"
 date: 2024-12-12
-categories: concurrency visualization spin 
+categories: concurrency
 ---
 
 
