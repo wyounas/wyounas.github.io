@@ -2,7 +2,7 @@
 layout: post
 title:  "Visualizing Concurrency"
 date: 2024-12-12
-categories: concurrency model-checking formal-methods
+categories: concurrency visualization spin 
 ---
 
 
