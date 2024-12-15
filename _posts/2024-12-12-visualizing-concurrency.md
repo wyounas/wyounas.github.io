@@ -1,6 +1,6 @@
 ---
 layout: post
-title:  "Visualizing Concurrency"
+title:  "Visualizing Concurrent Programs"
 date: 2024-12-12
 categories: concurrency
 ---
