@@ -1,6 +1,6 @@
 ---
 layout: post
-title:  "Understanding Concurrent Programs and Their Correctness with SPIN"
+title:  "How concurrecy works: A visual guide
 date: 2024-12-12
 categories: concurrency
 ---
