@@ -1,6 +1,6 @@
 ---
 layout: post
-title:  "Visualizing Concurrent Programs"
+title:  "Understanding Concurrent Programs and Their Correctness with SPIN"
 date: 2024-12-12
 categories: concurrency
 ---
