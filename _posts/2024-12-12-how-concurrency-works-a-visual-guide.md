@@ -1,6 +1,6 @@
 ---
 layout: post
-title:  "How concurrecy works: A visual guide
+title:  "How concurrecy works: A visual guide"
 date: 2024-12-12
 categories: concurrency
 ---
