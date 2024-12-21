@@ -203,7 +203,7 @@ In complex concurrent or distributed systems with thousands of possible states, 
 
 This all is what makes model checkers excel—they allow you to verify program correctness across a wide range of scenarios. Please stay tuned as I plan to write more about this. 
 
-*Thanks to G. Holzmann, Hillel Wayne, Jack Vanlightly, and Murat Demirbas for reading drafts of this.*
+*Thanks to Gerard Holzmann, Hillel Wayne, Jack Vanlightly, and Murat Demirbas for reading drafts of this.*
 
 *Please [email](mailto:waqas.younas@gmail.com) with questions, ideas, or corrections.*
 
