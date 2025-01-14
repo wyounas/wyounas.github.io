@@ -8,7 +8,7 @@ categories: concurrency
 I came across a fascinating and surprising aspect of a seemingly simple concurrent program when run on a model checker. Consider this:
 
 
-<img loading="lazy" src="{{ site.baseurl }}/images/2024-12-31-concurrency-failing-intuition/one.png" />
+<img loading="lazy" src="{{ site.baseurl }}/images/2025-1-13-concurrency-failing-intuition/one.png" />
 
 If we run P and Q concurrently, with ‘n’ initialized to zero, what would the value of ‘n’ be when the two processes finish executing their statements?
 
@@ -20,11 +20,11 @@ To see this in action, we could write a simple program in SPIN and claim that th
 
 Here is the program followed by the trail that shows the extreme interleaving:
 
-<img loading="lazy" src="{{ site.baseurl }}/images/2024-12-31-concurrency-failing-intuition/two.png"   />
+<img loading="lazy" src="{{ site.baseurl }}/images/2025-1-13-concurrency-failing-intuition/two.png"   />
 
 When I ran this, the error appeared:
 
-<img loading="lazy" src="{{ site.baseurl }}/images/2024-12-31-concurrency-failing-intuition/three.png"   />
+<img loading="lazy" src="{{ site.baseurl }}/images/2025-1-13-concurrency-failing-intuition/three.png"   />
 
 You can check out the complete interleaving trail in 
 <a href="{{site.baseurl}}/files/interleavings.txt" target="_blank">this file</a>.
