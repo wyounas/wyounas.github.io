@@ -1,0 +1,109 @@
+Starting P with pid 1
+0  :init ini run P()
+Starting P with pid 2
+0  :init ini run P()
+
+2  P:1    1)  i = 1
+2  P:1    1)  i<=10
+1  P:1    1)  i = 1
+1  P:1    1)  i<=10
+2  P:1    1)  temp = (n+1)
+1  P:1    1)  temp = (n+1)
+2  P:1    1)  n = temp
+
+Process Statement                             n
+2  P:1    1)  i = (i+1)                       1
+2  P:1    1)  i<=10                           1
+2  P:1    1)  temp = (n+1)                    1
+2  P:1    1)  n = temp                        1
+2  P:1    1)  i = (i+1)                       2
+2  P:1    1)  i<=10                           2
+2  P:1    1)  temp = (n+1)                    2
+2  P:1    1)  n = temp                        2
+2  P:1    1)  i = (i+1)                       3
+2  P:1    1)  i<=10                           3
+2  P:1    1)  temp = (n+1)                    3
+2  P:1    1)  n = temp                        3
+2  P:1    1)  i = (i+1)                       4
+2  P:1    1)  i<=10                           4
+2  P:1    1)  temp = (n+1)                    4
+2  P:1    1)  n = temp                        4
+2  P:1    1)  i = (i+1)                       5
+2  P:1    1)  i<=10                           5
+2  P:1    1)  temp = (n+1)                    5
+2  P:1    1)  n = temp                        5
+
+Process Statement                             n
+2  P:1    1)  i = (i+1)                       6
+2  P:1    1)  i<=10                           6
+2  P:1    1)  temp = (n+1)                    6
+2  P:1    1)  n = temp                        6
+2  P:1    1)  i = (i+1)                       7
+2  P:1    1)  i<=10                           7
+2  P:1    1)  temp = (n+1)                    7
+2  P:1    1)  n = temp                        7
+2  P:1    1)  i = (i+1)                       8
+2  P:1    1)  i<=10                           8
+2  P:1    1)  temp = (n+1)                    8
+2  P:1    1)  n = temp                        8
+2  P:1    1)  i = (i+1)                       9
+2  P:1    1)  i<=10                           9
+1  P:1    1)  n = temp                        9
+1  P:1    1)  i = (i+1)                       1
+1  P:1    1)  i<=10                           1
+2  P:1    1)  temp = (n+1)                    1
+1  P:1    1)  temp = (n+1)                    1
+1  P:1    1)  n = temp                        1
+
+Process Statement                             n
+1  P:1    1)  i = (i+1)                       2
+1  P:1    1)  i<=10                           2
+1  P:1    1)  temp = (n+1)                    2
+1  P:1    1)  n = temp                        2
+1  P:1    1)  i = (i+1)                       3
+1  P:1    1)  i<=10                           3
+1  P:1    1)  temp = (n+1)                    3
+1  P:1    1)  n = temp                        3
+1  P:1    1)  i = (i+1)                       4
+1  P:1    1)  i<=10                           4
+1  P:1    1)  temp = (n+1)                    4
+1  P:1    1)  n = temp                        4
+1  P:1    1)  i = (i+1)                       5
+1  P:1    1)  i<=10                           5
+1  P:1    1)  temp = (n+1)                    5
+1  P:1    1)  n = temp                        5
+1  P:1    1)  i = (i+1)                       6
+1  P:1    1)  i<=10                           6
+1  P:1    1)  temp = (n+1)                    6
+1  P:1    1)  n = temp                        6
+
+Process Statement                             n
+1  P:1    1)  i = (i+1)                       7
+1  P:1    1)  i<=10                           7
+1  P:1    1)  temp = (n+1)                    7
+1  P:1    1)  n = temp                        7
+1  P:1    1)  i = (i+1)                       8
+1  P:1    1)  i<=10                           8
+1  P:1    1)  temp = (n+1)                    8
+1  P:1    1)  n = temp                        8
+1  P:1    1)  i = (i+1)                       9
+1  P:1    1)  i<=10                           9
+1  P:1    1)  temp = (n+1)                    9
+1  P:1    1)  n = temp                        9
+1  P:1
+
+2  P:1    1)  n = temp                       10
+2  P:1    1)  i = (i+1)                       2
+2  P:1    1)  else                            2
+
+87 :proc 2 terminates
+88 :proc 1 terminates
+0  :init ini _nr_pr==1                       2
+n = 2
+0  :init ini printf('n = %d \\n',n)          2
+spin: interleaving.pml:24, Error: assertion violated
+spin: text of failed assertion: assert((n>2))
+#processes: 1
+91 :proc  0 (:init::1) interleaving.pml:24 (state 6)
+3 processes created
+Exit-Status 0

@@ -11,6 +11,12 @@ host: localhost
 
 markdown: kramdown
 
+kramdown:
+  syntax_highlighter_opts:
+    span:
+      line_numbers: false
+
+highlighter: rouge
 math_engine: mathjax
 
 compress_html:
