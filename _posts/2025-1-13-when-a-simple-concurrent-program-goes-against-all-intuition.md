@@ -18,7 +18,7 @@ I came across this in Ben-Ari’s book on the SPIN model checker [1]. He said he
 
 To see this in action, we could write a simple program in SPIN and claim that there is a computation where the value is 2. We can obtain this computation automatically by adding the assertion ```assertion (n > 2)``` at the end of the program and running a verification. SPIN searches the state space, looking for counterexamples.
 
-Here is the program followed by the trail that shows the extreme interleaving (statements in PROMELA are atomic; PROMELA is a simple language used for writing models in SPIN):
+Here is the program in PROMELA (a simple language used for writing modes in SPIN) followed by the trail that shows the extreme interleaving (statements in PROMELA are atomic):
 
 <img loading="lazy" src="{{ site.baseurl }}/images/2025-1-13-concurrency-failing-intuition/two.png"   />
 
