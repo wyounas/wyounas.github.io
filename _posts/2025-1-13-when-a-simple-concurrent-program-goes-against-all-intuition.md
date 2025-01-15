@@ -14,7 +14,7 @@ If we run P and Q concurrently, with ‘n’ initialized to zero, what would the
 
 I thought the final value of ‘n’ would be between 10 and 20. What do you think? Take a guess.
 
-I came across this in Ben-Ari’s book on the SPIN model checker [1]. He said he was shocked to find out that the final value could be as low as 2. I was shocked as well—the outcome completely defied my intuition.
+I came across this in Ben-Ari’s book on the SPIN model checker [1]. He said he was shocked to discover an extreme interleaving that set the final value of 'n' to 2. I was shocked as well—the outcome completely defied my intuition.
 
 To see this in action, we could write a simple program in SPIN and claim that there is a computation where the value is 2. We can obtain this computation automatically by adding the assertion ```assertion (n > 2)``` at the end of the program and running a verification. SPIN searches the state space, looking for counterexamples.
 
@@ -27,7 +27,7 @@ When I ran this, the error appeared:
 <img loading="lazy" src="{{ site.baseurl }}/images/2025-1-13-concurrency-failing-intuition/three.png"   />
 
 You can check out the complete interleaving trail in 
-<a href="{{site.baseurl}}/files/interleavings.txt" target="_blank">this file</a>.
+<a href="{{site.baseurl}}/files/interleavings.txt" target="_blank">this file</a>. I have never seen an interleaving this extreme.
 
 After seeing this, I wondered: Is it possible to observe a computation in practice where 'n' is set to 2? I think it’s highly unlikely to create such a computation in practice. A Go expert shared this following code with me, which limits execution to one thread and explicitly reschedules operations. When you run this Go program, the value of 'n' is sometimes 11, sometimes 10, but never less than 10.
 
