@@ -31,7 +31,7 @@ You can check out the complete interleaving trail in
 
 I tried to draw the illustration of the trail and here is a rough summary (though you should check out the above trail, it’s not very long):
 
-<img loading="lazy" src="{{ site.baseurl }}/images/2025-1-13-concurrency-failing-intuition/four.png"   />
+<img loading="lazy" src="{{ site.baseurl }}/images/2025-1-13-concurrency-failing-intuition/four1.png"   />
 
 Process 1 sets 'temp' to 1, and then Process 2 is scheduled and continues executing until 'n' is set to 9. 
 At this point, Process 1 takes over and sets 'n' to 1. Process 2 is then scheduled again, setting 'temp' to 2 
