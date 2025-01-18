@@ -35,7 +35,7 @@ I tried to draw the illustration of the trail and here is a rough summary (thoug
 
 Process 1 sets 'temp' to 1, and then Process 2 is scheduled and continues executing until 'n' is set to 9. 
 At this point, Process 1 takes over and sets 'n' to 1. Process 2 is then scheduled again, setting 'temp' to 2 
-(because Process 1 had just set 'n' to 1). Process 1 resumes execution and continues until it sets 'n' to 9. 
+(because Process 1 had just set 'n' to 1). Process 1 resumes execution and exhausts the loop. 
 Finally, Process 2 executes once more and, using the value it had set for temp (which was 2), sets 'n' to 2.
 
 
