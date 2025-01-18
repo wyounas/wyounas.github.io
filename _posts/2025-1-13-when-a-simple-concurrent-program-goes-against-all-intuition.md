@@ -29,6 +29,16 @@ When I ran this, the error appeared:
 You can check out the complete interleaving trail in 
 <a href="{{site.baseurl}}/files/interleavings.txt" target="_blank">this file</a>. I have never seen an interleaving this extreme.
 
+I tried to draw the illustration of the trail and here is a rough summary (though you should check out the above trail, it’s not very long):
+
+<img loading="lazy" src="{{ site.baseurl }}/images/2025-1-13-concurrency-failing-intuition/four.png"   />
+
+Process 1 sets 'temp' to 1, and then Process 2 is scheduled and continues executing until 'n' is set to 9. 
+At this point, Process 1 takes over and sets 'n' to 1. Process 2 is then scheduled again, setting 'temp' to 2 
+(because Process 1 had just set 'n' to 1). Process 1 resumes execution and continues until it sets 'n' to 9. 
+Finally, Process 2 executes once more and, using the value it had set for temp (which was 2), sets 'n' to 2.
+
+
 After seeing this, I wondered: Is it possible to observe a computation in practice where 'n' is set to 2? I think it’s highly unlikely to create such a computation in practice. A Go expert shared this following code with me, which limits execution to one thread and explicitly reschedules operations. When you run this Go program, the value of 'n' is sometimes 11, sometimes 10, but never less than 10.
 
 ```go
