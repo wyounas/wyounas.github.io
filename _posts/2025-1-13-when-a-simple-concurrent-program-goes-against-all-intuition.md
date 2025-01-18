@@ -10,7 +10,7 @@ I came across a fascinating and surprising aspect of a seemingly simple concurre
 
 <img loading="lazy" src="{{ site.baseurl }}/images/2025-1-13-concurrency-failing-intuition/one.png" />
 
-If we run P and Q concurrently, with ‘n’ initialized to zero, what would the value of ‘n’ be when the two processes finish executing their statements?
+If we run P and Q concurrently with ‘n’ initialized to zero, what could be the lowest value of ‘n’ when the two processes finish executing their statements on a model checker? Can a model checker also help us find the extreme interleaving that produces this lowest value of ‘n’?
 
 I thought the final value of ‘n’ would be between 10 and 20. What do you think? Take a guess.
 
