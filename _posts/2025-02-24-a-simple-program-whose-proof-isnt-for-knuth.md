@@ -3,6 +3,7 @@ layout: post
 title:  "A simple program by Knuth whose proof isn't"
 date: 2025-2-24
 categories: formal-methods
+math: true
 ---
 
 I accidentlly stumbled upon this book "Beauty is our business, A birthday Salute to Edsger W. Dijkstra" edited by W.H.J Feijen et al. As to what this book is about, here is an excerpt from preface: "More than anything else, this book is a tribute to Edsger W. Dijkstra, on the 
@@ -22,20 +23,70 @@ be fun. Knuth's essay is titled "A simple program  whose proof isn't."
 In this contribution, Knuth shares two programs. The first program converts decimal fraction to fixed-point binary and he shares that
 he finds it easy to proof this is correct. The second program converts the other way, given an integer 'n', it finds a decimal fraction and it's the correctness of this program which isn't straightforward. Let's talk about these one by one. 
 
-Convert decimal fraction to fixed-point binary
+## Convert decimal fraction to fixed-point binary
 
 Knuth had to write these routiens he was working on Tex (a typesetting program). Tex works with integer multiples of 2^-16. And he had
-to write a routine to convert 0.d1d2...dk to nearest possible binary fraction. Since input values dj are small nonnegative integers, it
-was desirable to keep intermediate results small. Knuth had this fascinating insight that since j < 17 have no effect on the answer, Tex 
-need only maintain an array capable of olding up to 17 digits, and all after 17 could be discarded. Here is this program called P1, as 
-outlined in the paper:
+to write a routine to convert 0.d1d2...dk to nearest possible binary fraction. 
 
-P1: l := min(k, 17), m := 0;
-    repeat m := (131072 * d[l] + m) div 10;
-        l := l - 1;
-    until l = 0;
-    n := (m + 1) div 2;
+It's fascinating how Knuth developed this program. 
 
+We need to find the nearest integer multiple of \(2^{-16}\). We want to round the quantity:  
+$$
+2^{16} \sum_{j=1}^k \frac{d_j}{10^j}
+$$
+
+to the nearest integer \(n\). If two integers are equally near, we let \(n\) be the integer:
+$$
+n = \left\lfloor 2^{16} \sum_{j=1}^k \frac{d_j}{10^j} + \frac{1}{2} \right\rfloor
+$$
+
+Let's say we have the input \(0.12408\), then:
+$$
+n = 2^{16} \cdot \left( \frac{1}{10^1} + \frac{2}{10^2} + \frac{4}{10^3} + \frac{0}{10^4} + \frac{8}{10^5} \right) + \frac{1}{2}
+$$
+
+This evaluates to:
+$$
+n = 8132
+$$
+
+Since input values \(d_j\) are small nonnegative integers, Knuth wanted to keep the intermediate results reasonably small.
+
+Also, since \(k\) can be arbitrarily large, Knuth had concerns that these could become too large for our computers' hardware. He demonstrated that **17 digits are not only sufficient — they are sometimes necessary** to determine the correct value of \(n\). We can safely ignore \(d_j\) for \(j > 17\), but **do the math yourself** to verify. Knuth’s attention to detail here is brilliant. 
+
+Here is this program called P1, as outlined in the paper:
+
+```
+P1: l := min(k, 17); m := 0;
+
+repeat m := (131072 * d[l] + m) div 10;
+       l := l - 1;
+until l = 0;
+
+n := (m + 1) div 2
+```
+
+Following shows a dry run of program P1 on input `0.12408`. The digits of the input 0.12408 are processed in reverse order from d[5] to d[1]: 
+
+| Iteration | Current 'l' | d[l] | Updated 'm' | Updated 'l' |
+|---|---|---|---|---|---|
+| 1 | 5 | 8 | 104857 | 4 |
+| 2 | 4 | 0 | 10485 | 3 |
+| 3 | 3 | 4 | 53477 | 2 |
+| 4 | 2 | 2 | 31562 | 1 |
+| 5 | 1 | 1 | 16263 | 0 |
+
+---
+
+Final Step when l = 0:
+$$
+n = \frac{m + 1}{2} = \frac{16263 + 1}{2} = \frac{16264}{2} = 8132
+$$
+
+Thus, converting \(0.12408\) via **P1** produces:
+$$
+\mathbf{n = 8132}
+$$
 
 Here is a Python version of this:
 
