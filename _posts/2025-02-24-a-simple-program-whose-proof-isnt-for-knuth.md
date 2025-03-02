@@ -116,7 +116,20 @@ P2: j := 0; s := 10 * n + 5; t := 10;
     k := j;
 ```
 
-And Knuth observed: 
+Following shows a dry run of P2 on the input n = 8132.
+
+| Iteration | d[j] | s (after update) | t (after update) |
+|---|---|---|---|---|
+| 1 | 1 | 157890 | 100 |
+| 2 | 2 | 268180 | 1000 |
+| 3 | 4 | 60360 | 10000 |
+| 4 | 0 | 603600 | 100000 |
+| 5 | 8 | 620800 | 1000000 |
+
+
+The algorithm works by repeatedly shifting the number left, like sliding digits out of a fraction one by one. Each time it shifts, the next digit pops out, and the algorithm records it. This way, the fraction gradually reveals itself as a sequence of digits, until there’s no more meaningful information left to extract. For example, if you start with a decimal fraction like 0.12408, the algorithm pulls out the digits one at a time — first the 1, then the 2, then the 4, and so on.
+
+Knuth observes: 
 
 " Why does this work? Everybody knows Dijkstra's famous dictum that testing can reveal the prescense of errors but not their absence. However, a program like this, with oinly finitely many inputs, is a counterexample! Suppose we test it for all 65536 values of 'n', and suppose the resulting fractions .d1 ... dk all reproduce the original value when converted back. Then we need only verify that none of the shorter fractions or neighboring fractions of equal length are better; this testing will prove the program correct.
 
@@ -696,8 +709,13 @@ This table summarizes the key values of \(s\), \(t\), and \(d\) at each step.
 </tbody>
 </table>
 
-
-
+| Step               | s | t | Inequality 1  | Inequality 2 | d |
+|--------------------|------------------|------------------|----------------------------|----------------------------|------------|
+| Initial            | 81325            | 10               | d < 1.241                   | d ≥ 1                       | 1          |
+| After 1st update   | 157890           | 100              | d < 2.409                   | d ≥ 2                       | 2          |
+| After 2nd update   | 268180           | 1000             | d < 4.092                   | d ≥ 4                       | 4          |
+| After 3rd update   | 60360            | 10000            | d < 0.921                   | d ≥ 0                       | 0          |
+| After 4th update   | 603600           | 100000           | d < 9.204                   | d ≥ 7                       | 8          |
 
 
 
