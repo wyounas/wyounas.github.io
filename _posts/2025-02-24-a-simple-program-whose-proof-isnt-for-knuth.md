@@ -116,9 +116,9 @@ P2: j := 0; s := 10 * n + 5; t := 10;
     k := j;
 ```
 
-Following shows a dry run of P2 on the input n = 8132.
+Following shows a dry run of P2 on the input n = 8132. Value of _s_ and _t_ are given after the update. 
 
-| Iteration | d[j] | s (after update) | t (after update) |
+| Iteration | d[j] | s | t |
 |---|---|---|---|---|
 | 1 | 1 | 157890 | 100 |
 | 2 | 2 | 268180 | 1000 |
@@ -137,13 +137,11 @@ But this testing is still not a good way to guarantee correctness, because it gi
 
 Even more, we seek a proof that reflects the ideas need to create the program, rather than a proof that was concocted ex post facto. The program didn't emerge by itself from a vacuum, nor did I simply try tall possible short programs until I found one that worked."
 
-That above is an important one. 
+That above is an important point. The program above emerged after careful thought and work. The values of _s_ and _t_ didn't emerge out of thin air, but they emerged after careful deliberation and mathematical analysis. We will see below how values of _s_ and _t_ emerged.  
 
 ## Germs of Proof Rework
 
-The way Knuth establishes the invariant is beautiful.
-
-First, let me explain how this proof works, and then I will walk through it carefully.
+I"ll try to walk through the process of how the proof was established. 
 
 ### Step 1: Setting up the digit strings
 
@@ -173,6 +171,19 @@ Initially, we have \(j = 0\) and this interval is:
 $$
 \left[2^{-16}\left(n - \frac{1}{2}\right), \, 2^{-16}\left(n + \frac{1}{2}\right)\right)
 $$
+
+
+Although Knuth is dealing with real numbers at this point but just curiuosity's sake I wanted to see what this interval would be for an integer, so if \(n = 8132\), then the interval is:
+
+$$
+\bigl[\,2^{-16}\,(8132 - \tfrac12),\;2^{-16}\,(8132 + \tfrac12)\bigr)
+$$
+
+$$
+= \bigl[\,0.12407,\; 0.12409\,\bigr)
+$$
+
+
 
 ### Step 2: Evolving the interval after each digit choice
 
@@ -218,14 +229,50 @@ This narrows down the possibility of subsequent digits.
 Now comes the other beautiful aspect of his proof. Above uses real numbers, but Knuth wants to stick to 
 integers so he introduces variables 's' and 't'. 
 
+<details>
+
+<summary>I wanted to see how this interval updates in case of integer n=8132, please click expand to view the calculation.</summary>
+
+<h4>Evolution of the Interval for n = 8132 </h4>
+<br/>
+
+Initially, we start with:
+
+$$
+[\alpha, \beta] = [0.12407, 0.12409)
+$$
+
+As the interval evolves:
+
+1. First update:  
+   $$ [\alpha', \beta'] = [0.2407, 0.2409) $$
+
+2. Second update:  
+   $$ [\alpha', \beta'] = [0.407, 0.409) $$
+
+3. Third update:
+   $$ [\alpha', \beta'] = [0.07, 0.09) $$
+
+4. Fourth update:
+   $$ [\alpha', \beta'] = [0.07, 0.9) $$
+
+5. Final update: 
+   $$ [\alpha', \beta'] = [0, 0) $$
+
+<br/>
+This process illustrates how the interval shifts left step by step, progressively narrowing towards zero.
+
+</details> 
+
+
 ## Representing the Interval with Integer Variables 's' and 't'
 
 Knuth introduces two integer variables to represent the interval boundaries more elegantly using integers instead of real numbers:
 
-- `s` represents the upper bound.
-- `t` represents the decimal scale.
+- _s_ represents the upper bound.
+- _t_ represents the decimal scale.
 
-He represents `α` and `β` using `s` and `t` as follows:
+He represents `α` and `β` using _s_ and _t_ as follows:
 
 $$
 10\alpha = 2^{-16}(s + t)
@@ -263,8 +310,28 @@ $$
 n = 8192
 $$
 
+The summarized calculations are given below in the table. Detailed calculations for each step are given right after the table. 
 
-#### First digit
+This table summarizes the key values of _s_, _t_, and _permissible d_ at each step.
+
+
+| Step               | s | t | Inequality 1  | Inequality 2 | Permissible d |
+|--------------------|------------------|------------------|----------------------------|----------------------------|------------|
+| Initial            | 81325            | 10               | d < 1.240                   | d > 0.24                       | 1          |
+| After 1st update   | 157890           | 100              | d < 2.409                   | d > 1.40                       | 2          |
+| After 2nd update   | 268180           | 1000             | d < 4.092                   | d > 3.07                       | 4          |
+| After 3rd update   | 60360            | 10000            | d < 0.921                   | d > 0                          | 0          |
+| After 4th update   | 603600           | 100000           | d < 9.210                   | d > 6.68                       | 7, 8, 9          |
+
+
+
+ 
+<details>
+
+<summary>Click to expand the detailed calculation</summary>
+
+
+<h3> First digit </h3><br/>
 
 Given that the initial values are:
 $$
@@ -290,7 +357,7 @@ $$
 Solving for 'd':
 
 $$
-d < \frac{81325}{65536} \approx 1.241
+d < \frac{81325}{65536} \approx 1.240
 $$
 
 
@@ -316,7 +383,7 @@ $$
 Solving for \(d\):
 
 $$
-d+1 > \frac{81315}{65536} \approx 1.2408
+d+1 > \frac{81315}{65536} \approx 1.2407
 $$
 
 
@@ -334,7 +401,7 @@ $$\mathbf{d = 1}$$
 Using the invariant relationship, we find out first digit which is 1. </div> <br/>
 
 
-#### Second digit
+<h3>  Second digit </h3> <br/>
 
 Now we've to update 's' and 't' to find out what next digit holds the invariant. 
 
@@ -404,7 +471,7 @@ I find it beautiful how this invariant holds and how keep getting our next digit
 
 It's time to update 's' and 't' again. 
 
-#### Third digit
+<h3> Third digit </h3> <br/>
 
 Now:
 
@@ -450,13 +517,13 @@ $$
 Solving for \(d\):
 
 $$
-d+1 > \frac{267180}{65536} \approx 4.078
+d+1 > \frac{267180}{65536} \approx 4.076
 $$
 
 This gives:
 
 $$
-d > 3.078 \implies d \geq 4
+d > 3.076 \implies d \geq 4
 $$
 
 The only value that works is:
@@ -468,7 +535,7 @@ $$
 <div style="background-color: #fff8c4; padding: 5px; display: inline-block;">So the next digit is 4 </div><br/>
 Isn't it beautiful how do we kep getting our next digit through the lens of this invariant?
 
-#### Fourth digit
+<h3> Fourth digit </h3> <br/>
 
 Alright, it's time update 's' and 't' again. 
 
@@ -522,7 +589,7 @@ $$
 This gives:
 
 $$
-d > -0.231
+d > -0.23
 $$
 
 This allows:
@@ -540,7 +607,7 @@ $$
 <div style="background-color: #fff8c4; padding: 5px; display: inline-block;">
 This gives us our next digit which is 0. </div> <br/>
 
-#### Fifth digit
+<h3> Fifth digit </h3> <br/>
 
 Let's update 's' and 't' one last time to get our final digit. 
 
@@ -580,7 +647,7 @@ $$
 Solving for \(d\):
 
 $$
-d < \frac{603600}{65536} \approx 9.204
+d < \frac{603600}{65536} \approx 9.21
 $$
 
 This allows:
@@ -601,22 +668,16 @@ $$
 503600 < 65536 \cdot d + 65536
 $$
 
-Factor out \(65536\):
-
-$$
-503600 < 65536 \cdot (d+1)
-$$
-
 Solving for \(d\):
 
 $$
-d+1 > \frac{503600}{65536} \approx 7.685
+d+1 > \frac{503600}{65536} \approx 7.684
 $$
 
 This gives:
 
 $$
-d > 6.685 \implies d \geq 7
+d > 6.684 \implies d \geq 7
 $$
 
 First inequality allows:
@@ -631,97 +692,58 @@ $$
 d \geq 7
 $$
 
-The overlap gives:
+So the integer values of _d_ satisfying both inequalities are
 
 $$
 d = 7, 8, 9
-$$
-
-To find the **largest valid \(d\)** within range \(0 \leq d \leq 9\), this gives:
-
-$$
-d = 8
 $$
 
 <div style="background-color: #fff8c4; padding: 5px; display: inline-block;">
 We can continue further, but for now complete the chain of calculations to get our answer 
 which is 0.12408. </div><br/>
 
-We can summarize above steps in a table below.
-
-This table summarizes the key values of \(s\), \(t\), and \(d\) at each step.
+</details>
 
 
-## Final Summary Table
+The idea of a keeping an invariant to check ensure that the next possible digit in the output guards your output is fascinating. And for every possible value of _d_, it's beautiful how tight the interval is, reducing the likelihood of an incorrect value by a great margin. 
 
-<table border="1" style="border-collapse: collapse; width: 100%; font-family: Arial, sans-serif; font-size: 16px;">
-<thead>
-    <tr>
-        <th style="text-align: center; padding: 8px;">Step</th>
-        <th style="text-align: center; padding: 8px;">s</th>
-        <th style="text-align: center; padding: 8px;">t</th>
-        <th style="text-align: center; padding: 8px;">Inequality 1 (upper bound)</th>
-        <th style="text-align: center; padding: 8px;">Inequality 2 (lower bound)</th>
-        <th style="text-align: center; padding: 8px;">Computed d</th>
-    </tr>
-</thead>
-<tbody>
-    <tr style="margin-bottom: 5px;">
-        <td style="padding: 8px;">Initial</td>
-        <td style="padding: 8px;">81325</td>
-        <td style="padding: 8px;">10</td>
-        <td style="padding: 8px;">d &lt; 1.241</td>
-        <td style="padding: 8px;">d ≥ 1</td>
-        <td style="padding: 8px;">1</td>
-    </tr>
-    <tr style="margin-bottom: 5px;">
-        <td style="padding: 8px;">After 1st Update</td>
-        <td style="padding: 8px;">157890</td>
-        <td style="padding: 8px;">100</td>
-        <td style="padding: 8px;">d &lt; 2.409</td>
-        <td style="padding: 8px;">d ≥ 2</td>
-        <td style="padding: 8px;">2</td>
-    </tr>
-    <tr style="margin-bottom: 5px;">
-        <td style="padding: 8px;">After 2nd Update</td>
-        <td style="padding: 8px;">268180</td>
-        <td style="padding: 8px;">1000</td>
-        <td style="padding: 8px;">d &lt; 4.092</td>
-        <td style="padding: 8px;">d ≥ 4</td>
-        <td style="padding: 8px;">4</td>
-    </tr>
-    <tr style="margin-bottom: 5px;">
-        <td style="padding: 8px;">After 3rd Update</td>
-        <td style="padding: 8px;">60360</td>
-        <td style="padding: 8px;">10000</td>
-        <td style="padding: 8px;">d &lt; 0.921</td>
-        <td style="padding: 8px;">d ≥ 0</td>
-        <td style="padding: 8px;">0</td>
-    </tr>
-    <tr style="margin-bottom: 5px;">
-        <td style="padding: 8px;">After 4th Update</td>
-        <td style="padding: 8px;">603600</td>
-        <td style="padding: 8px;">100000</td>
-        <td style="padding: 8px;">d &lt; 9.204</td>
-        <td style="padding: 8px;">d ≥ 7</td>
-        <td style="padding: 8px;">8</td>
-    </tr>
-</tbody>
-</table>
+Next, Knuth tackles how to optimally choose the fifth decimal digit in P2. To optimally choose this fifth decimal digit, Knuth does an adjustment of _s_ in this conditional in P2:
 
-| Step               | s | t | Inequality 1  | Inequality 2 | d |
-|--------------------|------------------|------------------|----------------------------|----------------------------|------------|
-| Initial            | 81325            | 10               | d < 1.241                   | d ≥ 1                       | 1          |
-| After 1st update   | 157890           | 100              | d < 2.409                   | d ≥ 2                       | 2          |
-| After 2nd update   | 268180           | 1000             | d < 4.092                   | d ≥ 4                       | 4          |
-| After 3rd update   | 60360            | 10000            | d < 0.921                   | d ≥ 0                       | 0          |
-| After 4th update   | 603600           | 100000           | d < 9.204                   | d ≥ 7                       | 8          |
+```if (t > 65536) then (s := s + 32768 - (t div 2));```
 
+We'll see just in a moment why this adjustment matters. In P2, after the first four iterations, if the input _n_ is 8132, we have:
 
+(d[1] = 1, d[2] = 2, d[3] = 4, d[4] = 0
 
-The idea of a keeping an invariant to check ensure that the next possible digit in the output guards your output is fascinating. 
+And the values of _s_ and _t_ are:
 
+s = 603600, t = 100000
 
+If we take these values of _s_ and _t_ and do not do any adjustment (using the above conditional), then d[5] would be 9. But is 9 the best choice for digit 5? The exact value of 8132/2^16 equals 0.12408447265625. We can see that 0.12408 is closer to the true value than 0.12409 here.
+
+So 8 is a better choice for d[5] than 9 for correctness reasons. It's fascinating how Knuth goes for optimal rounding using the above conditional for choice for d[5] than 9 for correctness reasons. 
+
+Overall two things that beautiful insights that emerge after ensuring P2's correctness for me are:
+
+- How an invariant relationship was developed to check for the permissibility of each decimal digit in the outcome. If the outcome is
+`0.d1d2d3d4d5` then the invariant ensures first that _d1_ is permissible and correct, then it checks for _d2_, then for _d3_, again for _d4_, 
+and lastly for _d5_. 
+
+- How the proof elegantly and optimally rounds the fifth digit. 
+
+Knuth didn't leave any crucial detail unaddressed from what I see. Each part of the program is critically analzed and evaluated for correctness. As a programmer, 
+the takeaway for me is to determine invariants whenever I can for every crucial part of my algorithm. Yes, unit testing is crucial and so is 
+analysis aided by formal-methods and model-checkers but so is carefully determining invariants for my algorithms. I say this after spending a couple of days last
+week chasing a bug which was not caught by unit tests and most likely wouldn't have been caught by high-level abstractions of model-checkers but the team
+agreed that a good invariant could have prevented it. 
+
+Just for curiosity's sake, I implemented P2 in Python, here is the code:
+
+```
+
+```
+
+I then implemneted P1 and wrote a small unit test to test for most values. All code is in this Github repository. 
 ----
 
 
