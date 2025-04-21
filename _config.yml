@@ -12,12 +12,13 @@ host: localhost
 markdown: kramdown
 
 kramdown:
+  input: GFM
+  math_engine: mathjax
   syntax_highlighter_opts:
     span:
       line_numbers: false
 
 highlighter: rouge
-math_engine: mathjax
 
 compress_html:
   clippings: all

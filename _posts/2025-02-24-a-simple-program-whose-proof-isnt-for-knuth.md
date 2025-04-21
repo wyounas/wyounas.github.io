@@ -7,41 +7,36 @@ math: true
 ---
 
 
-I recently came across a paper by Donald E. Knuth and it struck me as fun. 
+I recently came across a paper by Donald E. Knuth that I found both intriguing and fun to read. In it, Knuth shares two small programs he wrote while working on TeX, his typesetting system.
 
-In this paper, Knuth shares two programs which he had to write while he was working on TeX (a typesetting program). 
+   The first program, which he refers to as P1, converts a decimal fraction into an integer multiple of $2^{-16}$. He notes that the correctness of this program is easy to prove.
 
-The first program converts decimal fraction to an integer multiple of 2^-16 and he shares that
-he finds it easy to proof this is correct (he calls this program P1 in the paper). 
+The second program goes in the other direction: given an integer n, where $0 < n < 2^{16}$, it finds a decimal fraction. This time, however, the correctness of the program isn’t straightforward. Knuth refers to this one as P2. How he uses invariants and constructs a proof of correctness is both fascinating and beautiful. I'll walk through both programs below, one by one.
 
-The second program converts the other way, given an 
-integer _n_, where _n_ is in the range 0 < n < 2^16 it finds a decimal fraction and it's the correctness of this program which isn't straightforward (he calls this program P2). How 
-Knuth uses invariants and how he proves the correctness of this program is fascinating and beautiful. I'll talk about these two programs
-below one by one. 
+But before that, a few words about the book where this paper appears.
 
-Before I do that, a few words about the book. 
+The book is titled "Beauty is Our Business: A Birthday Salute to Edsger W. Dijkstra," edited by W.H.J. Feijen and others. It’s a tribute from Dijkstra’s friends and colleagues—people deeply influenced by his work. 
 
-The book is titled "Beauty is our business, A birthday Salute to Edsger W. Dijkstra" edited by W.H.J Feijen et al and it's a tribute by his friends and colleagues who were influenced by Dijkstra's work. 
+In the preface of the book, the editors write:
 
-In the preface of the book, it says: "In the end, on 
-Dijkstra's fifty-ninth birthday, we asked fifty-odd friends and colleages of his to contribute to this birthday salute. We requested 
-mainly technical contributions, and we asked that they be relatively short. Fifty-odd authors responded, and we are proud to place their contributions before Edsger Dijistra." 
+> In the end, on Dijkstra’s fifty-ninth birthday, we asked fifty-odd friends and colleagues of his to contribute to this birthday salute. We requested mainly technical contributions, and we asked that they be relatively short. Fifty-odd authors responded, and we are proud to place their contributions before Edsger Dijkstra.
 
-The preface also shares a quote by Dijkstra that inspired the book's title. That Dijkstra's quote is 
-worth sharing: "...when we recognize the battle against chaos, mess, and unmastered complexity as one of computing science's major 
-callings, we must admit that 'Beauty is our business.'"
- 
+The preface also includes a quote by Dijkstra that inspired the book’s title. It’s worth sharing:
 
-Reading this contribution by Knuth has been not only educational but also enlightening. Let's talk about these two programs that Knuth talks about in his paper one by one with one caveat. I wish I was so mathematically sophisticated that reading Knuth was a breeze. I feel my mathematical background is inadequate and there is so much I neeed to learn. Nonetheless, I tried to unpack his paper and found it enlightening and thought I should write about it and share my understanding of it. I am a human and I can make mistakes so please if you find any please email me and I'll be happy to correct it. 
+> ...when we recognize the battle against chaos, mess, and unmastered complexity as one of computing science’s major callings, we must admit that beauty is our business.
 
-## Convert decimal fraction to integer multiples of 2^-16
 
-TeX works with integer multiples of 2^-16 so Knuth had
-to write a routine to convert 0.d1d2...dk to nearest integer multiple of 2^-16. That is, for example, given an input `0.12408`, we get `8132` in output. 
+Reading Knuth’s contribution has been not only educational but also deeply enlightening. In what follows, I’ll walk through the two programs he discusses in his paper, one by one—with one caveat. I only wish I were mathematically sophisticated enough to read Knuth with ease. The truth is, my mathematical background feels inadequate, and there’s still so much I need to learn.
 
-It's fascinating how Knuth developed this program. Here is some detail as given in the paper. 
+Still, I did my best to unpack his paper and found it rewarding enough that I felt compelled to write about it and share what I’ve understood. I’m human, and I may have made mistakes—if you spot any, please feel free to email me, and I’ll be happy to correct them. 
 
-Since we need to find the nearest integer multiple of 2^-16, so Knuth says we can round the quantity: 
+## Convert decimal fraction to integer multiples of $2^{-16}$
+
+TeX works internally with integer multiples of $2^{-16}$, so Knuth needed to write a routine to convert a decimal fraction like $0.d1d2...dk$ into the nearest integer multiple of $2^{-16}$. For example, given an input like 0.12408, the routine returns 8132.
+
+It’s fascinating how Knuth approached the design of this program. Here’s a closer look at what he explains in the paper.
+
+Since we’re trying to find the nearest integer multiple of $2^{-16}$, Knuth notes that we can round the following quantity:
 
 $$
 2^{16} \sum_{j=1}^k \frac{d_j}{10^j}
@@ -53,27 +48,22 @@ $$
 n = \left\lfloor 2^{16} \sum_{j=1}^k \frac{d_j}{10^j} + \frac{1}{2} \right\rfloor
 $$
 
-To see how above unfolds for the input `0.12408`:
+To see how this works, consider the input $0.12408$:
 
 $$
 n = 2^{16} \cdot \left( \frac{1}{10^1} + \frac{2}{10^2} + \frac{4}{10^3} + \frac{0}{10^4} + \frac{8}{10^5} \right) + \frac{1}{2}
 $$
 
-This will give us:
-
-$$
-n = 8132
-$$
+This will give us $ n = 8132 $.
 
 Knuth shares two important considerations at this point. 
 
-First, since input values _dj_ are small nonnegative integers, Knuth wanted to keep the intermediate results reasonably small.
+First, since the input digits d<sub>j</sub> are small nonnegative integers, Knuth wanted to ensure that the intermediate results remained reasonably small.
 
-Second, since _k_ can be arbitrarily large, Knuth had concerns that these could become too large for our computers' hardware. He 
-says that 17 digits are not only sufficient — they are sometimes necessary to determine the correct value of _n_. 
-We can safely ignore _dj_ for _j > 17_. This shows that Knuth’s attention to detail here is brilliant. 
+Second, because k (the number of digits) can be arbitrarily large, he was concerned that the computations might exceed the limits of the computer’s hardware. He points out that 17 digits are not only sufficient—they are sometimes necessary to determine the correct value of n.
+We can safely ignore _dj_ for _j > 17_. This level of attention to detail is a hallmark of Knuth’s approach and one of the reasons this program is so elegant. 
 
-Here is this program called P1, as outlined in the paper:
+Here is this program, called P1, as outlined in the paper:
 
 ```
 P1: l := min(k, 17); m := 0;
@@ -85,8 +75,7 @@ until l = 0;
 n := (m + 1) div 2
 ```
 
-Following shows a dry run of program P1 on input `0.12408`. The digits of the input `0.12408` are processed in reverse order 
-from d[5] to d[1]: 
+The following is a dry run of Program P1 using the input $0.12408$. The digits of this input are processed in reverse order, from d[5] to d[1]:
 
 | Iteration | Current 'l' | d[l] | Updated 'm' | Updated 'l' |
 |---|---|---|---|---|---|
@@ -98,39 +87,25 @@ from d[5] to d[1]:
 
 ---
 
-So the loop exits when _l_ is zero but there is one more thing still left for P1 to do. To complete the dry run we take the 
-value of _m_ from the last row in the above table, when _l_ is zero and use it to 
-get _n_:
+The loop exits when l becomes zero, but there’s one final step left in Program P1. To complete the dry run, we take the value of m from the last row of the table—when l is zero—and use it to compute n:
 
 $$
 n = \frac{m + 1}{2} = \frac{16263 + 1}{2} = \frac{16264}{2} = 8132
 $$
 
-Thus, converting `0.12408` via P1 produces:
+Thus, converting $0.12408$ using Program P1 produces $ n = 8132 $. 
 
-$$
-n = 8132
-$$
-
-
-Knuth shares that the proof is easy for this one. "We have m = m1 at the beginnning of the repeat loop, assuming that k <= 17; and 
+Knuth notes that the proof for this one is straightforward: "We have m = m1 at the beginnning of the repeat loop, assuming that k <= 17; and 
 we have shown that it is legitimate to replace k by 17 if k is larger."
 
 ## Converting the other way
 
-Now we've to consider the inverse problem. Given an integer _n_, find a decimal fraction 
+Now we turn to the inverse problem: given an integer _n_, find a corresponding decimal fraction $0.d1d2...dk$
+that approximates to $2^{-16}.n$ so closely that P1 will reproduce _n_ exactly. For example, if the input is $8132$, we should expect the output to be $0.12408$.
 
-0.d1d2...dk
+As Knuth notes, it is desirable to keep k as small as possible—to find the shortest decimal fraction that will reproduce the given value of n.
 
-that approximates to 
-
-$$2^-16.n$$ 
-
-so closely that P1 will reproduce _n_ exactly. As an example, if input 8132, we ought to see `0.12408` as output.
-
-It's desirable, Knuth notes, to find _k_ as small as possible; to seek a shortest decimal fraction that will reproduce given value of _n_. 
-
-We also want to choose fraction closest to n/2^16. For example, both 0.0001 and 0.0002 yield n = 1  but we choose 0.0002 as it's closest to 1. 
+We also want to choose the fraction closest to $n / 2^{16}$. For example, both $0.0001$ and $0.0002$ yield $n = 1$, but we choose $0.0002$ because it is closer to 1.
 
 Here is the program P2 as given in the paper:
 
@@ -143,7 +118,7 @@ P2: j := 0; s := 10 * n + 5; t := 10;
     k := j;
 ```
 
-Following shows a dry run of P2 on the input n = 8132. Value of _s_ and _t_ in the table show their updated values as they would be at the end of each iteration. 
+The following is a dry run of Program P2 on the input $n = 8132$. The values of s and t shown in the table reflect their updated state at the end of each iteration.
 
 | Iteration | d[j] | s | t |
 |---|---|---|---|---|
@@ -153,15 +128,14 @@ Following shows a dry run of P2 on the input n = 8132. Value of _s_ and _t_ in t
 | 4 | 0 | 603600 | 100000 |
 | 5 | 8 | 620800 | 1000000 |
 
+---
 
-So if you start with a decimal fraction like `0.12408`, the algorithm basically pulls out the digits one at 
-a time — first the 1, then the 2, then the 4, and then 0 and finally 8. 
+So if you start with a decimal fraction like $0.12408$, the algorithm essentially extracts the digits one at a time—first the 1, then the 2, then the 4, followed by 0, and finally 8.
 
-This fraction gradually 
-reveals itself as a sequence of digits, with the aid of controlled values of _s_ and _t_, until there’s no more meaningful information left to extract. 
+This fraction gradually reveals itself as a sequence of digits—with the help of carefully controlled values of s and t—until there’s no more meaningful information left to extract.
 
 
-Knuth observes: 
+Knuth notes: 
 
 "Why does this work? Everybody knows Dijkstra's famous dictum that testing can reveal the prescense of errors but not their absence. However, a program like this, with only finitely many inputs, is a counterexample! Suppose we test it for all 65536 values of 'n', and suppose the resulting fractions .d1 ... dk all reproduce the original value when converted back. Then we need only verify that none of the shorter fractions or neighboring fractions of equal length are better; this testing will prove the program correct.
 
@@ -169,51 +143,37 @@ But this testing is still not a good way to guarantee correctness, because it gi
 
 Even more, we seek a proof that reflects the ideas need to create the program, rather than a proof that was concocted ex post facto. The program didn't emerge by itself from a vacuum, nor did I simply try tall possible short programs until I found one that worked."
 
-Above is an important point. We could write a unit test to test for all 65536 values but that doesn't guarentee that none of the 
-shorter fractions or nerighboring fractions of equal length are better. 
+This is an important point. While we could write a unit test to check all $65,536$ possible values, that wouldn’t guarantee that none of the shorter fractions—or neighboring fractions of equal length—would perform better. 
 
-Knuth sought a proof first before creating the program. He wanted the program to emerge from that proof and not to makea proof emerge after 
-writing the program.
+Knuth sought a proof first, before writing the program. He wanted the program to emerge from the proof—not to force a proof to fit after the fact.
 
-This shows that P2 emerged after careful thought, analysis, and work. 
-The values of _s_ and _t_ didn't emerge out of thin air, but they emerged after careful deliberation and 
-mathematical analysis. We will see below how. Also, as you'll see below, what's fascinating is how Knuth establishes invariants to ensure
-correct values are being calculated for the result. More on this below. 
+This shows that Program P2 emerged from careful thought, analysis, and design. The values of s and t didn’t come out of thin air—they were the result of deliberate reasoning and mathematical analysis. We’ll explore how shortly. What’s especially fascinating is how Knuth establishes invariants to ensure the correctness of the computed values. More on that below.
 
 ## Germs of Proof
 
 ### Step 1: Setting up the digit strings
 
-Knuth notes: The set of digit strings 
-
-$$d_{j+1} d_{j+2} \dots d_k$$ 
-
-that produce a given result _n_ when preceded by 
-
-$$0.d_1 d_2 \dots d_j$$ 
-
-can be characterized as a set of decimal fractions:
+Knuth notes: The set of digit strings $d_{j+1} d_{j+2} \dots d_k$ that produce a given result _n_ when preceded by $0.d_1 d_2 \dots d_j$ can be characterized as a set of decimal fractions:
 
 $$
 0.d_{j+1} \dots d_k
 $$
 
-This set lies within some half-open interval:
+This set falls within a certain half-open interval:
 
 $$
 [\alpha \dots \beta)
 $$
 
 
-Initially, we have j = 0 and this interval is:
+Initially, we have $j = 0$ and this interval is:
 
 $$
 \left[2^{-16}\left(n - \frac{1}{2}\right), \, 2^{-16}\left(n + \frac{1}{2}\right)\right)
 $$
 
 
-Although Knuth is dealing with real numbers at this point but just for curiuosity's sake I wanted to see what 
-the above interval would be for an integer, so if n = 8132, then the interval is:
+Although Knuth is working with real numbers at this point, I was curious to see what the corresponding interval would look like for a specific integer. So, if $n = 8132$, the interval is:
 
 $$
 \bigl[\,2^{-16}\,(8132 - \tfrac12),\;2^{-16}\,(8132 + \tfrac12)\bigr)
@@ -224,18 +184,12 @@ $$
 $$
 
 
-Although it maybe wrong to view this interval as an integer when the analysis in for real numbers but what's fascinating is 
-how tight the interval looks and our desired output is close to these values and within the inteval; leaving little room for error. 
-
+While it may not be entirely accurate to interpret this interval in terms of integers—since the analysis is meant for real numbers—what’s fascinating is how tight the interval is. Our expected output lies close to these values and falls within the interval, leaving little room for error.
 ### Step 2: Evolving the interval after each digit choice
 
 If we have already chosen some digits, what are the valid choices for the remaining digits?
 
-Knuth notes that permissible values of 
-
-$$d_{j+1}$$ 
-
-are decimal digits _d_ such that:
+Knuth notes that permissible values of $d_{j+1}$ are decimal digits _d_ such that:
 
 $$
 \left[\frac{d}{10}, \, \frac{d+1}{10}\right)
@@ -250,7 +204,7 @@ $$
 
 ### Step 3: Interval evolution after each new digit
 
-After we choose each digit, our interval evolves:
+After each digit is chosen, the interval is updated accordingly:
 
 - Initially, it is:
 
@@ -266,15 +220,13 @@ $$
 \left[10\alpha - d, \, 10\beta - d\right)
 $$
 
-This narrows down the possibility of subsequent digits. 
+This narrows down the possible values for the remaining digits.
 
-Now comes the other beautiful aspect of his proof. Above uses real numbers, but Knuth wants to stick to 
-integers so he introduces variables _s_ and _t_. How this transition is made to integers and how do _s_ and 
-_t_ emerge from this analysis has some beauty to it. Beauty is indeed Knuth's business. 
+Now comes another elegant aspect of the proof. While the reasoning above involves real numbers, Knuth wants to keep the implementation entirely in integers. To do this, he introduces the variables _s_ and _t_. The way this transition is handled—and how s and t naturally emerge from the analysis—has a beauty of its own. Beauty, after all, is Knuth’s business.
 
 <details>
 
-<summary>I wanted to see how this interval updates in case of integer n = 8132, please click expand to view the calculation.</summary>
+<summary>I was curious to see how this interval evolves in the case of the integer n = 8132. Click below to expand and view the detailed calculation.</summary>
 
 <br/>
 Initially, we start with:
@@ -301,7 +253,7 @@ As the interval evolves: <br/>
    $$ [0, 0) $$
 
 <br/>
-This process illustrates how the interval shifts left step by step, progressively narrowing towards zero.
+This process illustrates how the interval gradually shifts to the left, narrowing step by step toward zero.
 
 </details> 
 
@@ -309,7 +261,7 @@ This process illustrates how the interval shifts left step by step, progressivel
 ## Representing the Interval with Integer Variables <span style="text-transform: lowercase;">_s_ and _t_</span>
 
 
-Knuth introduces two integer variables to represent the interval boundaries more elegantly using integers instead of real numbers:
+Knuth introduces two integer variables to represent the interval boundaries more elegantly, allowing the use of integers instead of real numbers:
 
 - _s_ represents the upper bound.
 - _t_ represents the decimal scale.
@@ -336,14 +288,13 @@ $$
 Knuth shows that the invariant condition for each new digit _d_ is:
 
 $$
-0 \leq d \leq 9,\quad s > 2d,\quad s - t \leq 2d + 2^{16}
+0 \leq d \leq 9,\quad s > 2^{16}d,\quad s - t < 2^{16}d + 2^{16}
 $$
 
 
-This invariant relationship is important as we will see more below. This, as I understand it, is a core reason that helps us ensure
-the correctnes of results output by P2. 
+This invariant relationship is important, as we’ll see further below. As I understand it, this is one of the key reasons we can trust the correctness of the results produced by Program P2. 
 
-Whenever we increment _j_ and select a new digit _d_, the interval evolves, and we update _s_ and _t_ as:
+Each time we increment j and select a new digit d, the interval evolves, and we update s and t as follows:
 
 $$
 s = 10(s - 2^{-16}d)
@@ -355,79 +306,76 @@ $$
 
 ### Example
 
-Let's work through an example to see how the invariant, initial and updated values of _s_ and _t_ helps us ensure the correctness of result:
+Let’s work through an example to see how the invariant—and the initial and updated values of s and t—help ensure the correctness of the result:
 
 $$
 n = 8192
 $$
 
-The summarized calculations are given below in the table. Detailed calculations for each step, outlined in the table, are given right after the table. 
+A summary of the calculations is presented in the table below. Detailed step-by-step calculations, corresponding to each row, follow immediately after the table.
 
-This table shows how permissible values for each _d_ (of our decimal output) is determined by our invariants (expressed by _invariant 1_ and _invariant 2_) which is aided by carefully chosen values of _s_ and _t_ at each step. _Invariant 1_ represents 
-
-$$
-\quad s > 2d,
-$$
-
-and _Invariant 2_:
+This table illustrates how the permissible values for each digit d (in our decimal output) are determined by the invariants—referred to as Invariant 1 and Invariant 2—which are maintained through carefully chosen values of s and t at each step. Invariant 1 represents
 
 $$
-\quad s - t \leq 2d + 2^{16}
+\quad s > 2^{16}d
+$$
+
+and _Invariant 2_ represents:
+
+$$
+\quad s - t < 2^{16}d + 2^{16}
 $$
 
 
-| Step               | s | t | Invariant 1  | Invariant 2 | Permissible d |
-|--------------------|------------------|------------------|----------------------------|----------------------------|------------|
-| Initial            | 81325            | 10               | d < 1.240                   | d > 0.24                       | 1          |
-| After 1st update   | 157890           | 100              | d < 2.409                   | d > 1.40                       | 2          |
-| After 2nd update   | 268180           | 1000             | d < 4.092                   | d > 3.07                       | 4          |
-| After 3rd update   | 60360            | 10000            | d < 0.921                   | d > 0                          | 0          |
-| After 4th update   | 603600           | 100000           | d < 9.210                   | d > 6.68                       | 7, 8, 9          |
+| Step               | $$s$$ | $$t$$ | $$s > 2^{16}$$      | $$s - t < 2^{16}d + 2^{16}$$     | Permissible $$d$$ |
+|--------------------|--------------|-------------|----------------------------|----------------------------|------------|
+| Initial            | $$81325$$          | $$10$$            |     $$d < 1.240$$                   | $$d > 0.24$$                       | $$1$$          |
+| After 1st update   | $$157890$$         | $$100$$           |    $$d < 2.409$$                   | $$d > 1.40$$                       | $$2$$          |
+| After 2nd update   | $$268180$$         | $$1000$$          |    $$d < 4.092$$                   | $$d > 3.07$$                       | $$4$$          |
+| After 3rd update   | $$60360$$          | $$10000$$         |    $$d < 0.921$$                   | $$d > 0$$                          | $$0$$          |
+| After 4th update   | $$603600$$         | $$100000$$        |    $$d < 9.210$$                   | $$d > 6.68$$                       | $$7, 8, 9$$          |
 
 
+---
 
- 
 <details>
 
 <summary>Click to expand the detailed calculation</summary>
 
 
-<h3> First digit </h3><br/>
+<h3> First Permissible digit </h3><br/>
 
 Given that the initial values are:
+
 $$
-s = 81325, 
-t = 10
+s = 81325, t = 10
 $$
 
-We've two inequalities to satisfy:
+We've two inequalities to check:
 
-1. $$ s > d \cdot 2^{16} $$ 
-2. $$ (s - t) < 2^{16} \cdot d + 2^{16} $$
+$$ s > d \cdot 2^{16} $$ 
+
+and 
+
+$$ (s - t) < 2^{16} \cdot d + 2^{16} $$
 
 Since:
 
 $$2^{16} = 65536$$ 
 
-Let's evaluate for 's = 81325' and 't = 10' and evaluate the first inequality:
+Let's evaluate for $s = 81325$ and $t = 10$ and evaluate the first inequality:
 
 $$
 81325 > 65536 \cdot d
 $$
 
-Solving for _d_:
+Solving for $d$:
 
 $$
 d < \frac{81325}{65536} \approx 1.240
 $$
 
 
-
-This allows:
-
-$$
-d = 0 \text{ or } d = 1
-$$
 
 Now evaluate the second inequality:
 
@@ -441,36 +389,36 @@ $$
 81315 < 65536 \cdot (d+1)
 $$
 
-Solving for _d_:
+Solving for $d$:
 
 $$
-d+1 > \frac{81315}{65536} \approx 1.2407
+d+1 > \frac{81315}{65536} 
 $$
 
+which is about $0.234$ 
 
 Thus:
 
 $$
-d \geq 1
+0.23 < d < 1.24
 $$
 
-The only value that works is:
 
-$$\mathbf{d = 1}$$
+Looks like $d = 1$ is the integer value (since Knuth is now dealing with integers) that satisfies above.
 
 <div style="background-color: #fff8c4; padding: 5px; display: inline-block;">
-Using the invariant relationship, we find out first digit which is 1. </div> <br/>
+	So using the invariant relationship above, we find that the first permissible digit is 1.
+ </div> <br/>
 
 
-<h3>  Second digit </h3> <br/>
+<h3>  Second permissible digit </h3> <br/>
 
-Now we've to update _s_ and _t_ to find out what next digit holds the invariant. 
+Now we need to update $s$ and $t$ to determine which digit satisfies the invariant next.
 
 Now:
 
 $$
-s = 10 \cdot \left( 81325 - 2^{16} \cdot 1 \right) \\
-t = 100
+s = 10 \cdot \left( 81325 - 2^{16} \cdot 1 \right), t = 100
 $$
 
 This evaluates to:
@@ -489,17 +437,13 @@ $$
 157890 > 65536 \cdot d
 $$
 
-Solving for _d_:
+Solving for $d$:
 
 $$
 d < \frac{157890}{65536} \approx 2.409
 $$
 
-This allows:
 
-$$
-d = 0, 1, 2
-$$
 
 Now let's evaluate the second inequality:
 
@@ -507,38 +451,35 @@ $$
 157790 < 65536 \cdot (d+1)
 $$
 
-Solving for _d_:
+Solving for $d$:
 
 $$
-d+1 > \frac{157790}{65536} \approx 2.407
+d+1 > \frac{157790}{65536} 
 $$
+
+
 
 This gives:
 
 $$
-d > 1.407 \implies d \geq 2
+d > 1.407 
 $$
 
-The only value that works is:
-
+So we've:
 $$
-d = 2
+1.40 < d < 2.40
 $$
 
 <div style="background-color: #fff8c4; padding: 5px; display: inline-block;">
-This gives the next possible value 2. 
+This yields the next permissible digit: 2. I find it beautiful how the invariant continues to hold, guiding us step by step. It's now time to update s and t again.
 </div> <br/>
-I find it beautiful how this invariant holds and how keep getting our next digits. 
 
-It's time to update _s_ and _t_ again. 
-
-<h3> Third digit </h3> <br/>
+<h3> Third Permissible Digit </h3> <br/>
 
 Now:
 
 $$
-s = 10 \cdot \left(157890 - 2^{16} \cdot 2 \right) \\
-t = 1000
+s = 10 \cdot \left(157890 - 2^{16} \cdot 2 \right), t = 1000
 $$
 
 This evaluates to:
@@ -557,16 +498,10 @@ $$
 268180 > 65536 \cdot d
 $$
 
-Solving for _d_:
+Solving for $d$:
 
 $$
 d < \frac{268180}{65536} \approx 4.092
-$$
-
-This allows:
-
-$$
-d = 0, 1, 2, 3, 4
 $$
 
 Let's evaluate the second inequality:
@@ -575,36 +510,37 @@ $$
 267180 < 65536 \cdot (d+1)
 $$
 
-Solving for _d_:
+Solving for $d$:
 
 $$
-d+1 > \frac{267180}{65536} \approx 4.076
+d+1 > \frac{267180}{65536}
 $$
 
 This gives:
 
 $$
-d > 3.076 \implies d \geq 4
+d > 3.076 
 $$
 
-The only value that works is:
+So we've:
 
 $$
-d = 4
+3.07 < d < 4.09 
 $$
 
-<div style="background-color: #fff8c4; padding: 5px; display: inline-block;">So the next digit is 4 </div><br/>
-Isn't it beautiful how do we kep getting our next digit through the lens of this invariant?
 
-<h3> Fourth digit </h3> <br/>
+<div style="background-color: #fff8c4; padding: 5px; display: inline-block;">So the next permissible digit is 4. Isn’t it beautiful how this invariant keeps revealing the next permissible digit, step by step? </div><br/>
 
-Alright, it's time update _s_ and _t_ again. 
+
+
+<h3> Fourth Permissible Digit </h3> <br/>
+
+Alright, it's time update $s$ and $t$ again. 
 
 Now:
 
 $$
-s = 10 \cdot \left(268180 - 2^{16} \cdot 4 \right) \\
-t = 10000
+s = 10 \cdot \left(268180 - 2^{16} \cdot 4 \right), t = 10000
 $$
 
 This evaluates to:
@@ -623,17 +559,12 @@ $$
 60360 > 65536 \cdot d
 $$
 
-Solving for _d_:
+Solving for $d$:
 
 $$
 d < \frac{60360}{65536} \approx 0.921
 $$
 
-This allows:
-
-$$
-d = 0
-$$
 
 Now the second inequality:
 
@@ -641,10 +572,10 @@ $$
 50360 < 65536 \cdot (d+1)
 $$
 
-Solving for _d_:
+Solving for $d$:
 
 $$
-d+1 > \frac{50360}{65536} \approx 0.768
+d+1 > \frac{50360}{65536} 
 $$
 
 This gives:
@@ -653,28 +584,21 @@ $$
 d > -0.23
 $$
 
-This allows:
+So we've:
 
 $$
-d \geq 0
-$$
-
-The only value that works is:
-
-$$
-d = 0
+-0.23 < d < 0.92
 $$
 
 <div style="background-color: #fff8c4; padding: 5px; display: inline-block;">
-This gives us our next digit which is 0. </div> <br/>
+This gives us the next digit: 0. </div> <br/>
 
-<h3> Fifth digit </h3> <br/>
+<h3> Fifth Permissible Digit </h3> <br/>
 
-Let's update _s_ and _t_ one last time to get our final digit. 
+Let’s update $s$ and $t$ one final time to obtain the last digit.
 
 $$
-s = 10 \cdot \left(60360 - 2^{16} \cdot 0 \right) \\
-t = 100000
+s = 10 \cdot \left(60360 - 2^{16} \cdot 0 \right), t = 100000
 $$
 
 Since:
@@ -705,17 +629,12 @@ $$
 603600 > 65536 \cdot d
 $$
 
-Solving for _d_:
+Solving for $d$:
 
 $$
 d < \frac{603600}{65536} \approx 9.21
 $$
 
-This allows:
-
-$$
-d = 0, 1, 2, \dots, 9
-$$
 
 The second inequality is:
 
@@ -729,98 +648,202 @@ $$
 503600 < 65536 \cdot d + 65536
 $$
 
-Solving for _d_:
+Solving for $d$:
 
 $$
-d+1 > \frac{503600}{65536} \approx 7.684
+d+1 > \frac{503600}{65536} 
 $$
 
 This gives:
-_t__d__d_
 $$
-d > 6.684 \implies d \geq 7
-$$
-
-First inequality allows:
-
-$$
-d = 0, 1, \dots, 9
+d > 6.684 
 $$
 
-Second inequality allows:
+So we've:
 
 $$
-d \geq 7
+6.84 < d < 9.21
 $$
 
-So the integer values of _d_ satisfying both inequalities are
+So the integer values of $d$ that satisfy the above are:
 
 $$
 d = 7, 8, 9
 $$
 
 <div style="background-color: #fff8c4; padding: 5px; display: inline-block;">
-We can continue further, but for now complete the chain of calculations to get our answer 
-which is 0.12408. </div><br/>
+We could continue further, but for now let’s complete the chain of calculations to arrive at our answer: 0.12408.. </div><br/>
+
+
+<hr/>
 
 </details>
 
-The output we want is 0.12408. The permissible _d_ in the first step is exactly the first digit in our expected output, the next permissible _d_ is the exact second digit in the expected output, the third and the fourth permissible _d_ again are same digits we want in our outpput, for the last values for permisslbe _d_ contain a narrow set of values from our next output digit is taken. 
+The output we want is $0.12408$. The permissible _d_ in the first step matches exactly the first digit of our expected output. The next permissible d gives us the second digit, and the third and fourth permissible d values again match the expected digits. For the final digit, the permissible values form a narrow range—from which the last digit of the output is selected.
 
-This idea of a keeping an invariant to guard the permissibility of the next possible digit in the output 
-is just fascinating. At each step, for every permissible value(s) of _d_, how close permissible 
-digits are to the actual digit required in the result at that step, reducing the 
-likelihood of an incorrect value. 
+The idea of maintaining an invariant to govern the permissibility of the next output digit is fascinating. At each step, the permissible values of _d_ are remarkably close to the actual digit required at that point in the output—greatly reducing the likelihood of an incorrect value. 
 
-Next, Knuth tackles how to optimally choose the fifth decimal digit in P2 i.e., the "best possible" among the available choices. We'll see 
-just in a moment why the fifth digit and why this adjustment matters. 
-To optimally choose this fifth decimal digit, Knuth does an adjustment of _s_ in this conditional in P2:
+Next, Knuth addresses how to optimally choose the fifth decimal digit in P2—that is, the “best possible” option among the available choices. We’ll see in just a moment why the fifth digit is significant, and why this adjustment matters. 
+
+To optimally select the fifth decimal digit, Knuth adjusts the value of _s_ using the following conditional statement in P2:
 
 ```if (t > 65536) then (s := s + 32768 - (t div 2));```
 
-In P2, after the first four iterations, if the input _n_ is 8132, we have:
+In P2, after the first four iterations, given the input 'n = 8132', we have:
 
-(d[1] = 1, d[2] = 2, d[3] = 4, d[4] = 0
+
+$$ d[1] = 1, d[2] = 2, d[3] = 4, d[4] = 0 $$
 
 And the values of _s_ and _t_ are:
 
 s = 603600, t = 100000
 
-If we take these values of _s_ and _t_ and do not do any adjustment (using the above conditional), then d[5] would be 9. 
-But is 9 the best choice for digit 5? So we know that: 
+If we use these values of _s_ and _t_ without applying the adjustment (as defined in the conditional above), we would get 'd[5] = 9'. But is 9 really the best choice for the fifth digit? So we know that: 
 
 $$
 \frac{8132}{2^{16}} = 0.12408447265625
 $$
 
 
-We can see that `0.12408` is closer to the true value than `0.12409` here.
+We can see that 0.12408 is closer to the true value than 0.12409 in this case.
 
-So 8 is a better choice for d[5] than 9 for correctness reasons and this is why the choice of fifth digit matters. 
-It's fascinating how Knuth goes for optimal rounding using the above conditional for choice for d[5] than 9 for correctness reasons. 
+So, 8 is a better choice for d[5] than 9 from a correctness standpoint—and this is why the fifth digit matters. It’s fascinating how Knuth ensures optimal rounding by applying the conditional adjustment when choosing d[5]. 
 
-Overall two beautiful insights emerge after looking at P2's correctness:
+One final thing I wanted to understand was how Knuth derived the following if expression:
 
-- How an invariant relationship checks for the permissibility of each decimal digit in the outcome. For the output
-`.d1d2d3d4d5` how the invariant ensures the permissibility of _d1_, then for _d2_, then for _d3_, again for _d4_, 
-and lastly for _d5_ is nothing short of beautiful. The pursuit of precision is often beautiful.  
+```if (t > 65536) then (s := s + 32768 - (t div 2));```
 
-- How the proof elegantly and optimally rounds the fifth digit. 
+The idea of adding 32768 and subtracting 't div 2' is fascinating on its own—but I was genuinely surprised. How did Knuth come up with that?
 
-Knuth didn't leave any crucial detail unaddressed. 
+Based on a couple of close readings of the final sections of the paper, I’ve tried to reconstruct Knuth’s reasoning. After working through the invariants and equations he presents, I’ve outlined my understanding in the collapsible section below.
 
-Each part of the program is critically analzed and evaluated for correctness. As a programmer, 
-what inspires me here is to strive for such attention to detail. Also, to strive for determining invariants whenever I 
-can for every crucial part of my algorithm. 
+<details>
 
-Yes, unit testing is crucial and so is 
-analysis aided by formal-methods and model-checkers but so is carefully determining invariants (at least for the critical code). 
-I say this after spending a couple of days last week chasing a bug which was not caught by unit tests and most likely wouldn't have been 
-caught by high-level abstractions of model-checkers and the team agreed that a good invariant could have prevented it. 
+<summary> How was `if (t > 65536) then (s := s + 32768 - (t div 2));` derived? </summary>
 
-Just for curiosity, I implemented both P1 and P2 in Python. 
+<br>
+Knuth explains that we want to compute the quantity:
 
-All code is in this GitHub repository: [knuth-beauty-is-his-business](https://github.com/wyounas/knuth-beauty-is-his-business).
+$$
+\left\lfloor \frac{10^5 n}{2^{16}} + \frac{1}{2} \right\rfloor
+$$
+
+rounded to five decimal places, whenever no suitable approximation with fewer than 5 decimal places exists.
+
+He also states that the variables
+
+$$
+s \quad \text{and} \quad d_1 \ldots d_j
+$$
+
+(where 'j' is the number of computed digits so far)
+
+
+obey the following invariant relationship, stated in section 4 of the paper:
+
+$$
+\frac{s}{10^{j+1}} + 2^{16} \sum_{i=1}^{j} \frac{d_i}{10^i} = n + \frac{1}{2} \tag{1}
+$$
+
+To compute the fifth decimal digit, we set $j = 4$.
+
+Equation (1) then becomes:
+
+$$
+\frac{s}{10^5} + 2^{16} \sum_{i=1}^{4} \frac{d_i}{10^i} = n + \frac{1}{2} \tag{2}
+$$
+
+Ideally, we want the right-hand side of (2) to match the following expression, since—as noted above—this is the quantity Knuth aims to compute:
+
+$$
+\frac{10^5 n}{2^{16}} + \frac{1}{2}
+$$
+
+To reach that form, we multiply both sides of (2) by $10^5$:
+
+$$
+s + 2^{16} \sum_{i=1}^{4} d_i \cdot 10^{5 - i} = 10^5 n + \frac{10^5}{2} \tag{3}
+$$
+
+Now subtract $10^{5}/2$ from both sides:
+
+$$
+s - \frac{10^5}{2} + 2^{16} \sum_{i=1}^{4} d_i \cdot 10^{5 - i} = 10^5 n \tag{4}
+$$
+
+Now add $2^{15}$ to both sides:
+
+
+$$
+s - \frac{10^5}{2} + 2^{15} + 2^{16} \sum_{i=1}^{4} d_i \cdot 10^{5 - i} = 10^5 n + 2^{15} \tag{5}
+$$
+
+To align the right-hand side with the expression:
+
+$$
+\left\lfloor \frac{10^5 n}{2^{16}} + \frac{1}{2} \right\rfloor
+$$
+
+We divide equation (5) by $2^{16}$:
+
+$$
+\frac{s'}{2^{16}} + \sum_{i=1}^{4} d_i \cdot 10^{5 - i} = \frac{10^5 n}{2^{16}} + \frac{1}{2}
+$$
+
+where:
+
+$$
+s' = s + 2^{15} - \frac{10^5}{2}
+$$
+
+Then:
+
+$$
+\left\lfloor \frac{s'}{2^{16}} + \sum_{i=1}^{4} d_i \cdot 10^{5 - i} \right\rfloor = \sum_{i=1}^{5} d_i \cdot 10^{5 - i}
+$$
+
+So s' gives the correct value for the fifth decimal digit.
+
+When $j = 4$ we have $t = 10^{5}$ so the key expression becomes:
+
+$$
+s' = s + 2^{15} - \frac{10^5}{2}
+$$
+
+Hence, we get:
+
+$$
+s := s + 32768 - \left\lfloor \frac{t}{2} \right\rfloor
+$$
+
+Which corresponds to:
+
+$$
+s := s + 32768 - \frac{t}{2} \quad \text{when } t = 10^5
+$$
+
+And that corresponds exactly to the statement inside that 'if' expression. 
+
+<hr/>
+
+</details>
+
+To conclude, two elegant insights emerge from examining the correctness of P2:
+
+- How the invariant relationship governs the permissibility of each decimal digit in the output is remarkable. For the output $.d1d2d3d4d5$, the invariant ensures the correctness of d1, then d2, then d3, followed by d4, and finally d5. This step-by-step scrupulous precision is nothing short of beautiful. The pursuit of precision, in itself, is often beautiful. 
+
+- How Knuth uses the invariant to determine the exact statement needed (in the 'if' statement above) to correctly select the final digit.
+
+- 	How the proof elegantly and optimally handles the rounding of the fifth digit.
+ 
+
+Knuth left no crucial detail unaddressed.
+
+Every part of the program is critically analyzed and evaluated for correctness. As a programmer, what inspires me most is Knuth’s level of attention to detail—and the example he sets in identifying invariants for each crucial part of the algorithm. It inspires one to aim for the same in my own work 
+
+Yes, unit testing is essential—as is analysis supported by formal methods and model checkers. But carefully identifying invariants, especially for critical sections of code, is just as important. I say this after spending a few days last week chasing a bug that slipped through unit tests and likely wouldn’t have been caught by high-level model-checking abstractions. In hindsight, the whole team agreed that a well-defined invariant could have prevented it.
+
+Out of curiosity, I implemented both P1 and P2 in Python. You can find the code in this GitHub repository: [knuth-beauty-is-his-business](https://github.com/wyounas/knuth-beauty-is-his-business).
 
 ----
 
