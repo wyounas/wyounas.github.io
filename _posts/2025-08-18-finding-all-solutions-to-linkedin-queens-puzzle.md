@@ -8,7 +8,7 @@ categories: model-checking, puzzles
 
 <img loading="lazy" src="{{ site.baseurl }}/images/2025-08-18-linkedin-puzzle/first.png" />
 
-LinkedIn Queens is a puzzle played on an n × n grid with the following rules:
+LinkedIn Queens is a puzzle played on an `n × n` grid with the following rules:
 
 - The grid is divided into ‘n’ colored regions.
 - Each row, column, and colored region must contain exactly one queen.
@@ -18,9 +18,10 @@ In this post, we aim to find all solutions, not just one, to the puzzle. We aim 
 
 ## Solving the Puzzle using a SAT Solver
 
-I first came across this puzzle in a nice blog post by Hillel Wayne, whose blog I enjoy reading, where he solved it using an SMT solver called Z3.
+I first came across this puzzle in a nice [blog post](https://buttondown.com/hillelwayne/archive/solving-linkedin-queens-with-smt/) by Hillel Wayne, whose blog I enjoy reading, where he solved it using an SMT solver called Z3.
 
-In the past, I had used a Python-based SAT solver called PyEDA, and I thought it would be interesting to use it to find all solutions to the LinkedIn Queens puzzle. Let’s solve it for a 4x4 grid though the code can be extended to solve it for a 9x9 grid. 
+
+In the past, I had used a Python-based SAT solver called PyEDA [1], and I thought it would be interesting to use it to find all solutions to the LinkedIn Queens puzzle. Let’s solve it for a 4x4 grid though the code can be extended to solve it for a 9x9 grid. 
 To get started with PyEDA, we represent the 4×4 grid as a two-dimensional bit vector:
 ```
 X = exprvars('x', 4, 4)
@@ -79,7 +80,7 @@ for r in range(n-1):  # Stop before last row
 
 That’s pretty much all we need to do to get not just one, but all possible solutions to the puzzle. We use S.satisfy_count() to print the total number of satisfying assignments, which turns out to be two.
 
-Below are two valid solutions for the above board with specific regions. Here is the complete code.
+Below are two valid solutions for the above board with specific regions. Here is the [complete code](https://github.com/wyounas/linkedin_queens/blob/main/queens.py).
 
 Solution 1 - Queens at cells: [3, 5, 12, 14]:
 ```
@@ -159,7 +160,7 @@ spin: atest.pml:13, Error: assertion violated
 The output above shows that the assertion failed in the computation where x was set to 3.  But there are other counterexamples that would also cause the assertion to fail, for example, when x is set to 4 or 5. So how do we find all these counterexamples? We can do that using the following command, which enables exploration of all computations:
 
 ```
-/pan -E -c0 -e    
+./pan -E -c0 -e    
 pan:1: assertion violated (x==1) (at depth 1)
 pan: wrote atest.pml1.trail
 pan: wrote atest.pml2.trail
@@ -318,9 +319,9 @@ As you can see, towards the end, we’ve not only printed the ‘result’ array
 assert(false); 
 ```
 
-This causes the model checker to backtrack and search for computations that successfully exit the loop, meaning computations that have placed queens on the board according to the rules. Any such computation is not just a counterexample to our assertion claim, but also a valid solution to the puzzle. 
+This causes the model checker to backtrack and search for computations that successfully exit the loop, meaning computations that have placed queens on the board according to the rules. Any such computation is not just a counterexample to our assertion claim, but also a valid solution to the puzzle. [Here is the code](https://github.com/wyounas/linkedin_queens/blob/main/queenfourbyfour.pml) for 4x4 grid. 
 
-Now to find a solution, we run the model with spin -run queens.pml and then run the verifier `./pan -E`.
+Now to find a solution, we run the model with `spin -run queens.pml` and then run the verifier `./pan -E`.
 You’ll see an assertion violation, along with a message indicating that a trail file has been written. Replay the trail file with command:
 ```
 spin -p -t queens.pml
@@ -361,7 +362,7 @@ Without changing much code, we can extend these ideas to a 9x9 grid. Here is a L
 
 <img loading="lazy" src="{{ site.baseurl }}/images/2025-08-18-linkedin-puzzle/six.png" />
 
-Here is the full code that gives us the solution to this puzzle. When I run it, I find the solution:
+[Here is the complete code](https://github.com/wyounas/linkedin_queens/blob/main/queenninebynine.pml) that gives us the solution to this puzzle. When I run it, I find the solution:
 ```
 result[0] = 46
 result[1] = 11
@@ -379,7 +380,7 @@ result[8] = 70
 
 Just for fun and curiosity, I wanted to find all solutions to the puzzle without the region constraint, that is, to find all valid queen placements where exactly one queen is placed in each row and column, and no two queens are adjacent, including diagonally.
 
-This code does that, and it reports 5,023 solutions to the puzzle when we drop the region constraint.
+[This code](https://github.com/wyounas/linkedin_queens/blob/main/queens_wo_region.pml) does that, and it reports 5242 solutions to the puzzle when we drop the region constraint.
 
 In the end, I would say that this nondeterminimisn support in Spin is quite powerful an it could be leveraged to find solutions to certain kind of problems elegantly. 
 
@@ -388,7 +389,7 @@ In the end, I’d say that Spin’s support for nondeterminism is quite powerful
 ## Solving the puzzle with Fizzbee
 
 
-There’s another promising model checker on the horizon called Fizzbee. Its syntax closely resembles Python, which makes it more approachable, especially for programmers who prefer Python-like semantics.
+There’s another promising model checker on the horizon called [Fizzbee](https://fizzbee.io/). Its syntax closely resembles Python, which makes it more approachable, especially for programmers who prefer Python-like semantics.
 
 To find a solution using Fizzbee, I applied similar ideas to those I used with Promela and Spin.
 
@@ -402,7 +403,7 @@ I wasn’t able to fully explore Fizzbee’s support for nondeterminism, but fro
 
 To check for an invalid board, we use an assertion that looks for three things: if there is more than one queen in any row, more than one queen in any column, or if any queens are touching diagonally, or if more than one queen in the region. Here is the full code.
 
-When I run this code for the above 9x9 LinkedIn-Queens puzzle, Fizzbee returns one counterexample. And as expected, the counterexample corresponds to a valid LinkedIn Queens solution.
+When I run this [code](https://github.com/wyounas/linkedin_queens/blob/main/queens.fizz) for the above 9x9 LinkedIn-Queens puzzle, Fizzbee returns one counterexample. And as expected, the counterexample corresponds to a valid LinkedIn Queens solution.
 
 Below is the resulting 9x9 board, where 1 represents a queen placed in that cell:
 
@@ -420,7 +421,11 @@ Below is the resulting 9x9 board, where 1 represents a queen placed in that cell
 
 So far, I’ve only been able to get Fizzbee to output a single counterexample as a solution even when I use a board that has multiple solutions. Currently, Fizzbee doesn’t list all counterexamples. However, JP (the creator of Fizzbee, and always helpful) showed me an alternative approach. He suggested printing the board inside the assertion code at the end and returning true instead of false. This actually works well—as long as the search space is small. For larger spaces, it sort of falters, but that’s coming from someone still learning to fully grasp how Fizzbee works.
 
+_Please keep in mind that I’m only human, and there’s a good chance this guide contains errors—even though I’ve done my best to avoid them. If you notice anything off, I’d really appreciate a correction. Please feel free to [send me an email](mailto:waqas.younas@gmail.com)._
+
+
 ## References
 
-1. jSpin
-2. Book
+1. https://pyeda.readthedocs.io/en/latest/overview.html 
+2. https://github.com/motib/jspin
+3. https://link.springer.com/book/10.1007/978-1-84628-770-1
