@@ -1,6 +1,6 @@
 ---
 layout: post
-title:  "Finding all solutions to Linkedin-Queens with a SAT Solver and two Model Checkers"
+title:  "Solving the LinkedIn Queens Puzzle with a SAT Solver and Two Model Checkers"
 date: 2025-8-18
 categories: model-checking, puzzles
 ---
@@ -78,7 +78,7 @@ for r in range(n-1):  # Stop before last row
                 constraints.append(~(X[r,c] & X[r+1, c+1]))
 ```
 
-That’s pretty much all we need to do to get not just one, but all possible solutions to the puzzle. We use S.satisfy_count() to print the total number of satisfying assignments, which turns out to be two.
+That’s pretty much all we need to do to get not just one, but all possible solutions to the puzzle. We use satisfy_count() to print the total number of satisfying assignments, which turns out to be two.
 
 Below are two valid solutions for the above board with specific regions. Here is the [complete code](https://github.com/wyounas/linkedin_queens/blob/main/queens.py).
 
@@ -107,16 +107,18 @@ Model checkers are tools designed to verify whether a system satisfies a given c
 
 The verification process in Spin typically involves three steps:
 
-- Write the model in Promela and save it in a .pml file.
-- Generate a verifier in C by running spin -a model.pml. This generates a pan.c file (name ‘pan’ is historically derived from ‘protocol analyzer’). Then compile it with a C compiler (e.g., gcc -o pan pan.c).
-- Run the verifier (using the shell command ‘./pan’). It reports whether all computations are correct or there exists a computation that contains an error. If an error is found, the verifier produces a trail file which can be used to reconstruct the erroneous computation. We'll make use of trail files shortly, to extract valid puzzle solutions. More on this in a bit.
+- Write the model in Promela and save it in a `.pml` file.
+- Run the verifier (using the shell command `./pan`). It reports whether all computations are correct or there exists a computation that contains an error. If an error is found, the verifier produces a trail file which can be used to reconstruct the erroneous computation. We'll make use of trail files shortly, to extract valid puzzle solutions. More on this in a bit.
+- Generate a verifier in C by running `spin -a model.pml`. This generates a `pan.c` file (name `pan` is historically derived from ‘protocol analyzer’). Then compile it with a C compiler (e.g., `gcc -o pan pan.c`).
 
-Instead of  ‘spin -a model.pml’, we can also run ‘spin -run model.pml’ to generate the verifier and compile it in one go. 
+Instead of  `spin -a model.pml`, we can also run `spin -run model.pml` to generate the verifier and compile it in one go. 
 
 Before diving into the solution, let’s briefly discuss two Spin/Promela concepts that we'll use to solve the puzzle. 
 
-The first concept, used also in the Puzzle’s solution, is a guard expression that blocks the process when it evaluates to false. Blocking here means that Spin will stop exploring the state space from that state onward. The following statement will block the above process when ‘x’ equals 2:
+The first concept is a guard expression that blocks the process when it evaluates to false. Blocking here means that Spin will stop exploring the state space from that state onward. The following statement will block the above process when ‘x’ equals 2:
+```
 ! (x == 2);
+```
 
 The statement above allows the process to make progress only if the condition evaluates to true. The ! operator is a logical negation, so the above expression is true when x is not equal to 2. In other words, the process will proceed only when x is not 2.
 
@@ -124,21 +126,22 @@ The second concept is how nondeterminism and error search work in Spin. Consider
 
 <img loading="lazy" src="{{ site.baseurl }}/images/2025-08-18-linkedin-puzzle/second.png" />
 
-We wrap our code in a process-like executable unit using the proctype keyword in Promela. When we prefix a proctype definition with the active keyword, we’re telling the model checker to automatically start that process when Spin begins execution. 
+We wrap our code in a process-like executable unit using the `proctype` keyword in Promela. When we prefix a `proctype` definition with the `active` keyword, we’re telling the model checker to automatically start that process when Spin begins execution. 
 
-The if statement above is how nondeterministic choice is expressed in Promela. In this case, the if block allows Promela to choose a value for x nondeterministically. After this ‘if’ statement is executed, x will have one of the values: 1, 2, 3, 4, or 5.
+The `if` statement above is how nondeterministic choice is expressed in Promela. In this case, the `if` block allows Promela to choose a value for `x` nondeterministically. After this `if` statement is executed, `x` will have one of the values: 1, 2, 3, 4, or 5.
 
 To further understand how this nondeterminism will play out, below is an automata that represents the possible transitions for this code (generated using a tool called jSpin [2]):
 
 <img loading="lazy" src="{{ site.baseurl }}/images/2025-08-18-linkedin-puzzle/three.png" />
 
-The numbers inside the circles represent line numbers. As you can see, there isn’t just one computation path from start to finish, there are five possible computations, depending on which value is assigned to x.
+The numbers inside the circles represent line numbers. As you can see, there isn’t just one computation path from start to finish, there are five possible computations, depending on which value is assigned to `x`.
 
-At the end of the above program, we have an assert that checks whether x == 1. Will this assertion pass? It will fail, because Spin finds a counterexample. 
+At the end of the above program, we have an assert that checks whether `x == 1`. Will this assertion pass? It will fail, because Spin finds a counterexample. 
 
-How does it find a counterexample? This assert causes the model checker to backtrack and explore all possible counterexamples from all computations. It tries to find computations where x is not set to 1. For example, from five computations shown in the above figure, it will find paths where x is set to 3, 4, or 5—but not 2, because that choice was blocked earlier using the guard expression.
+How does it find a counterexample? This assert causes the model checker to backtrack and explore all possible counterexamples from all computations. It tries to find computations where `x` is not set to 1. For example, from five computations shown in the above figure, it will find paths where `x` is set to 3, 4, or 5—but not 2, because that choice was blocked earlier using the guard expression.
 
 Here’s a truncated version of the assertion violation report you would see when you run your model (assuming the above code is saved in a file named atest.pml):
+
 ```
 $ spin -run atest.pml  
 $ ./pan -E         
@@ -147,7 +150,7 @@ pan: wrote atest.pml.trail
 ```
 
 The -E switch tells the verifier to ignore computations that end in invalid status which could be caused by blocked computations.
-As indicated in the above output, this generates a trail file. We can replay it with Spin’s -t -p switches, inspect the output, and see how the computation led to the error. The output below, truncated for clarity, shows the sequence of steps that led to the assertion failure.
+As indicated in the above output, this generates a trail file. We can replay it with Spin’s `-t -p` switches, inspect the output, and see how the computation led to the error. The output below, truncated for clarity, shows the sequence of steps that led to the assertion failure.
 
 ```
 $ spin -t -p atest.pml
@@ -157,7 +160,7 @@ $ spin -t -p atest.pml
 spin: atest.pml:13, Error: assertion violated
 ```
 
-The output above shows that the assertion failed in the computation where x was set to 3.  But there are other counterexamples that would also cause the assertion to fail, for example, when x is set to 4 or 5. So how do we find all these counterexamples? We can do that using the following command, which enables exploration of all computations:
+The output above shows that the assertion failed in the computation where `x` was set to 3.  But there are other counterexamples that would also cause the assertion to fail, for example, when `x` is set to 4 or 5. So how do we find all these counterexamples? We can do that using the following command, which enables exploration of all computations:
 
 ```
 ./pan -E -c0 -e    
@@ -176,17 +179,17 @@ spin -p -t3 atest.pml
 spin: atest.pml:13, Error: assertion violated
 ```
 
-We could see that when ‘x’ was set to 5, it refuted our assertion claim. 
+We could see that when `x` was set to 5, it refuted our assertion claim. 
 
-The key takeaway is this: we nondeterministically set x, wrote an assertion, and let the model checker backtrack and explore all possible computations involving the different values x could take and the model checker found all computations that violated the assertion and reported them as counterexamples.
+The key takeaway is this: we nondeterministically set `x`, wrote an assertion, and let the model checker backtrack and explore all possible computations involving the different values `x` could take and the model checker found all computations that violated the assertion and reported them as counterexamples.
 
 This ability of the model checker (Spin in this case) to take code with nondeterminism and systematically backtrack and explore all possible computations in order to find a counterexample to an assertion is central to how we’ll find all solutions to the puzzle. Ben-Ari’s book [3] introduced me to these ideas.
 
-So the question is: how do we find those valid combinations?
+So the question is: how do we find those valid combinations that are solutions to Linked-in queens puzzle?
 
-Figure 1 helped me come up with a solution. In that figure, we chose a value for x nondeterministically from five options. The model checker then explored all five possible computations, one for each choice. Similarly, if we can nondeterministically choose a cell from each region, the model checker will evaluate all possible combinations of four cells, with one cell chosen from each region.
+Figure 1 helped me come up with a solution. In that figure, we chose a value for `x` nondeterministically from five options. The model checker then explored all five possible computations, one for each choice. Similarly, if we can nondeterministically choose a cell from each region, the model checker will evaluate all possible combinations of four cells, with one cell chosen from each region.
 
-To visualize this, I found it helpful to imagine a tree-like structure, as shown in Figure 2. It’s of course not ideal, but it helped me think through the problem. For both Figure 2 and Figure 3 below, we use the same board and colored region configuration as in the Python code above—where 1s represent region colored red, 2s represent region colored green, 3s represent region in yellow, and 4s represent region in pink. The board layout looks like this:
+To visualize this, I found it helpful to imagine a tree-like structure, as shown in Figure 2 below (If the image appears unclear, consider opening it in a new tab.). It’s of course not ideal, but it helped me think through the problem. For both Figure 2 and Figure 3 below, we use the same board and colored region configuration as in the Python code above—where 1s represent region colored red, 2s represent region colored green, 3s represent region in yellow, and 4s represent region in pink. The board layout looks like this:
 ```
 1 1 1 1
 2 2 2 2
@@ -258,13 +261,13 @@ bool diagonals[N*N];
 
 We’ll number the colored regions from 1 to 4, and the cells from 1 to 8 (starting from the top-left cell, counting left to right across each row, and ending at the bottom-right cell).
 
-The result array stores the final solution. Each result[region-1] holds the cell where a queen is placed in that region. For example, result[0] = 2 means the queen is placed in cell 2 in region 1.
+The `result` array stores the final solution. Each `result[region-1]` holds the cell where a queen is placed in that region. For example, `result[0] = 2` means the queen is placed in cell 2 in region 1.
 
-The array rows keeps track of whether a queen has already been placed in a given row. For example, rows[i] is true if there is a queen in row i. Similarly, ‘cols’ keeps track of whether a queen has been placed in a given column. 
+The array rows keeps track of whether a queen has already been placed in a given row. For example, `rows[i]` is true if there is a queen in row i. Similarly, `cols` keeps track of whether a queen has been placed in a given column. 
 
-The array diagonals stores information about the diagonal constraints. 
+The array `diagonals` stores information about the diagonal constraints. 
 
-We process the board region by region and once we’ve processed a region we store it in an ‘regions’ array. 
+We process the board region by region and once we’ve processed a region we store it in an `regions` array. 
 
 The general outline of what happens in the program is as follows. As the program processes the board region by region iteratively, from region 1 to 4, it performs these steps in sequence (we’ll go over each in some detail shortly):
 
@@ -277,7 +280,7 @@ The general outline of what happens in the program is as follows. As the program
     - Mark the queen’s adjacent diagonals to prevent placing another queen in those cells later.
     - Print the results.
 
-We use assert(false) at the end to make the model checker backtrack and explore all computations that successfully exit the loop.
+We use `assert(false)` at the end to make the model checker backtrack and explore all computations that successfully exit the loop.
 
 Let’s quickly go over these one by one. 
 
@@ -309,10 +312,9 @@ cols[col] = true;
 result[region-1] = cell;
 ```
 
-Finally, we update the ‘diagonals’  array to record the adjacent lower diagonal cells of the queen we just placed. These will be used later to ensure that no new queen is placed on an adjacent diagonal. We do this in the method ‘MarkDiagonals(row, col)’. This step prepares the model to block any future placements that would violate the diagonal adjacency constraint.
+Finally, we update the `diagonals`  array to record the adjacent lower diagonal cells of the queen we just placed. These will be used later to ensure that no new queen is placed on an adjacent diagonal. We do this in the method `MarkDiagonals(row, col)`. This step prepares the model to block any future placements that would violate the diagonal adjacency constraint.
 
-At this point, we’ve finished processing the region, so we move on to the next by restarting the loop. This process repeats until all regions have been processed.
-Here is the full code.
+At this point, we’ve finished processing the region, so we move on to the next by restarting the loop. This process repeats until all regions have been processed. Here is the full code.
 
 As you can see, towards the end, we’ve not only printed the ‘result’ array, but also, we’ve added this line:
 ```
@@ -378,13 +380,13 @@ result[8] = 70
 
 <img loading="lazy" src="{{ site.baseurl }}/images/2025-08-18-linkedin-puzzle/seven.png" />
 
+I took the original image and, based on the values in the result array, placed queens (marked as "Q" above) in the image. It looks like a valid solution to the puzzle that satisfies all the constraints.(Please ignore the small ‘x’ in the image above, it was just a placeholder in the original image.)
+
 Just for fun and curiosity, I wanted to find all solutions to the puzzle without the region constraint, that is, to find all valid queen placements where exactly one queen is placed in each row and column, and no two queens are adjacent, including diagonally.
 
 [This code](https://github.com/wyounas/linkedin_queens/blob/main/queens_wo_region.pml) does that, and it reports 5242 solutions to the puzzle when we drop the region constraint.
 
-In the end, I would say that this nondeterminimisn support in Spin is quite powerful an it could be leveraged to find solutions to certain kind of problems elegantly. 
-
-In the end, I’d say that Spin’s support for nondeterminism is quite powerful, and it can be leveraged to find solutions to certain kinds of problems in a very elegant way.
+In the end, I’d say that Spin’s support for nondeterminism is quite powerful and it can be leveraged to solve certain kinds of problems in an elegant way.
 
 ## Solving the puzzle with Fizzbee
 
@@ -393,9 +395,9 @@ There’s another promising model checker on the horizon called [Fizzbee](https:
 
 To find a solution using Fizzbee, I applied similar ideas to those I used with Promela and Spin.
 
-Just as we wrap the code we want to explore in a proctype in Promela to model process-like behavior, in Fizzbee we use an action block to define such executable units.
+Just as we wrap the code we want to explore in a `proctype` in Promela to model process-like behavior, in Fizzbee we use an `action` block to define such executable units.
 
-We begin by writing the Init action, which is executed once at the start. It is responsible for setting up the system state and initializing all relevant variables.
+We begin by writing the `Init` action, which is executed once at the start. It is responsible for setting up the system state and initializing all relevant variables.
 
 The overall logic is the same as in the Promela version: we process one region at a time. Before placing a queen, we check whether the target cell is on an adjacent diagonal to an already-placed queen. We also use guard conditions via the require keyword to block the action if a queen has already been placed in the row or column we’re trying to use.
 
@@ -419,13 +421,13 @@ Below is the resulting 9x9 board, where 1 represents a queen placed in that cell
 [0, 0, 0, 1, 0, 0, 0, 0, 0]
 ```
 
-So far, I’ve only been able to get Fizzbee to output a single counterexample as a solution even when I use a board that has multiple solutions. Currently, Fizzbee doesn’t list all counterexamples. However, JP (the creator of Fizzbee, and always helpful) showed me an alternative approach. He suggested printing the board inside the assertion code at the end and returning true instead of false. This actually works well—as long as the search space is small. For larger spaces, it sort of falters, but that’s coming from someone still learning to fully grasp how Fizzbee works.
+So far, I’ve only been able to get Fizzbee to output a single counterexample as a solution even when I use a board that has multiple solutions. Currently, Fizzbee doesn’t list all counterexamples. However, JP (the creator of Fizzbee, who is always helpful) showed me an alternative approach. He suggested printing the board inside the assertion code at the end and returning true instead of false. This actually works well—as long as the search space is small. For larger spaces, it sort of falters, but that’s coming from someone still learning to fully grasp how Fizzbee works.
 
-_Please keep in mind that I’m only human, and there’s a good chance this guide contains errors—even though I’ve done my best to avoid them. If you notice anything off, I’d really appreciate a correction. Please feel free to [send me an email](mailto:waqas.younas@gmail.com)._
+_Please keep in mind that I’m only human, and there’s a good chance this guide contains errors—even though I’ve done my best to avoid them. If you notice anything off, I’d appreciate a correction. Please feel free to [send me an email](mailto:waqas.younas@gmail.com)._
 
 
 ## References
 
-1. https://pyeda.readthedocs.io/en/latest/overview.html 
-2. https://github.com/motib/jspin
-3. https://link.springer.com/book/10.1007/978-1-84628-770-1
+1. PyEda: https://pyeda.readthedocs.io/en/latest/overview.html 
+2. jSpin: https://github.com/motib/jspin
+3. [Ben-Ari, M. (2008). Principles of the Spin model checker. Springer.](https://link.springer.com/book/10.1007/978-1-84628-770-1)
