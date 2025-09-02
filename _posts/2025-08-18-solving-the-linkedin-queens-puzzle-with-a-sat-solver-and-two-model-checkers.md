@@ -16,12 +16,14 @@ LinkedIn Queens is a puzzle played on an `n × n` grid with the following rules:
 
 In this post, we aim to find all solutions, not just one, to the puzzle. We aim to find all solutions using a Python-based SAT solver and two model checkers, namely Spin and Fizzbee. To keep things simple, we’ll solve the puzzle for a 4x4 grid using the SAT Solver, but we will solve it both for 4x4 and 9x9 using model checkers. 
 
+You might come across simpler or different ways to solve this problem—and that’s fine. My goal here is to explore how different computational approaches can tackle the same challenge. For instance, I found that the Spin model checker is not just powerful, but also a great way to learn about nondeterminism, which plays a central role in the Spin-based solution to the puzzle.
+
 ## Solving the Puzzle using a SAT Solver
 
-I first came across this puzzle in a nice [blog post](https://buttondown.com/hillelwayne/archive/solving-linkedin-queens-with-smt/) by Hillel Wayne, whose blog I enjoy reading, where he solved it using an SMT solver called Z3.
+I first came across this puzzle in a nice [blog post](https://buttondown.com/hillelwayne/archive/solving-linkedin-queens-with-smt/) by Hillel Wayne, whose blog I enjoy reading, where he solved it using an SMT solver called Z3. 
 
 
-In the past, I had used a Python-based SAT solver called PyEDA [1], and I thought it would be interesting to use it to find all solutions to the LinkedIn Queens puzzle. Let’s solve it for a 4x4 grid though the code can be extended to solve it for a 9x9 grid. To get started with PyEDA, we represent the 4×4 grid as a two-dimensional bit vector:
+In the past, I had used a Python-based SAT solver called PyEDA [1], and I thought it would be interesting to use it to find all solutions to the LinkedIn Queens puzzle. Let’s solve it for a 4x4 grid though the code can be extended to solve it for a 9x9 grid. To get started with PyEDA, we represent the 4×4 grid as a two-dimensional bit vector (The code uses Python 3.13.1 and PyEDA 0.29.0. Installation instructions are available in the code repository linked below.):
 ```
 X = exprvars('x', 4, 4)
 ```
@@ -102,7 +104,7 @@ Now let’s try to solve the puzzle using a model checker, again with the goal o
 
 ## Solving the Puzzle Using Spin 
 
-Model checkers are tools designed to verify whether a system satisfies a given correctness specification by exploring all possible computations of the system. For concurrent and nondeterministic programs, this involves systematically exploring all possible interleavings and using backtracking to exhaustively explore the state space. The state space of a program is the set of all possible states that can occur during a computation.
+Model checkers are tools designed to verify whether a system satisfies a given correctness specification by exploring all possible computations of the system. For concurrent and nondeterministic programs, this involves systematically exploring all possible interleavings and using backtracking to exhaustively explore the state space. The state space of a program is the set of all possible states that can occur during a computation. We're not going to use model checking in the traditional sense in that we're not going to check safety or liveness properties. But we'll use Spin for its excellent support for nondeterminism, which is a central idea in how we solve this puzzle. I also believe Spin is an excellent tool for learning about nondeterminism.
 
 The verification process in Spin typically involves three steps:
 
@@ -122,7 +124,7 @@ The first concept is a guard expression that blocks the process when it evaluate
 
 The statement above allows the process to make progress only if the condition evaluates to true. The ! operator is a logical negation, so the above expression is true when x is not equal to 2. In other words, the process will proceed only when x is not 2.
 
-The second concept is how nondeterminism and error search work in Spin. Consider the following small Promela program:
+The second concept is how nondeterminism and error search work in Spin. Consider the following small Promela program (All Spin code in this post was written using Spin version 6.5.2):
 
 <img loading="lazy" src="{{ site.baseurl }}/images/2025-08-18-linkedin-puzzle/second.png" />
 
