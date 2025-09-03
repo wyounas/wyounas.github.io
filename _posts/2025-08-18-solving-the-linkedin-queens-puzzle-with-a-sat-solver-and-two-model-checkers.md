@@ -16,14 +16,16 @@ LinkedIn Queens is a puzzle played on an `n × n` grid with the following rules:
 
 In this post, we aim to find all solutions, not just one, to the puzzle. We aim to find all solutions using a Python-based SAT solver and two model checkers, namely Spin and Fizzbee. To keep things simple, we’ll solve the puzzle for a 4x4 grid using the SAT Solver, but we will solve it both for 4x4 and 9x9 using model checkers. 
 
-You might come across simpler or different ways to solve this problem—and that’s fine. My goal here is to explore how different computational approaches can tackle the same challenge. For instance, I found that the Spin model checker is not just powerful, but also a great way to learn about nondeterminism, which plays a central role in the Spin-based solution to the puzzle.
+There are different ways to solve this problem. My goal here is to explore how various computational approaches can tackle the same challenge. I believe that model checkers, for instance, aren't just powerful tools for ensuring correctness, but also a great way to learn about nondeterminism. There's also a touch of elegance in how SAT solvers can sometimes reformulate complex problems.
 
 ## Solving the Puzzle using a SAT Solver
 
 I first came across this puzzle in a nice [blog post](https://buttondown.com/hillelwayne/archive/solving-linkedin-queens-with-smt/) by Hillel Wayne, whose blog I enjoy reading, where he solved it using an SMT solver called Z3. 
 
 
-In the past, I had used a Python-based SAT solver called PyEDA [1], and I thought it would be interesting to use it to find all solutions to the LinkedIn Queens puzzle. Let’s solve it for a 4x4 grid though the code can be extended to solve it for a 9x9 grid. To get started with PyEDA, we represent the 4×4 grid as a two-dimensional bit vector (The code uses Python 3.13.1 and PyEDA 0.29.0. Installation instructions are available in the code repository linked below.):
+In the past, I had used a Python-based SAT solver called PyEDA [1], and I thought it would be interesting to use it to find all solutions to the LinkedIn Queens puzzle. Let’s solve it for a 4x4 grid though the code can be extended to solve it for a 9x9 grid. The code uses Python 3.13.1 and PyEDA 0.29.0. All the code in this post is linked in relevant sections, and the repository containing all the code is also linked in the references at the end.
+
+To get started with PyEDA, we represent the 4×4 grid as a two-dimensional bit vector:
 ```
 X = exprvars('x', 4, 4)
 ```
@@ -79,7 +81,7 @@ for r in range(n-1):  # Stop before last row
                 constraints.append(~(X[r,c] & X[r+1, c+1]))
 ```
 
-That’s pretty much all we need to do to get not just one, but all possible solutions to the puzzle. We use satisfy_count() to print the total number of satisfying assignments, which turns out to be two.
+That’s pretty much all we need to do to get not just one, but all possible solutions to the puzzle. We then print the total number of solutions, which turns out to be two.
 
 Below are two valid solutions for the above board with specific regions. Here is the [complete code](https://github.com/wyounas/linkedin_queens/blob/main/queens.py) that generated these two solutions.
 
@@ -104,25 +106,27 @@ Now let’s try to solve the puzzle using a model checker, again with the goal o
 
 ## Solving the Puzzle Using Spin 
 
-Model checkers are tools designed to verify whether a system satisfies a given correctness specification by exploring all possible computations of the system. For concurrent and nondeterministic programs, this involves systematically exploring all possible interleavings and using backtracking to exhaustively explore the state space. The state space of a program is the set of all possible states that can occur during a computation. We're not going to use model checking in the traditional sense in that we're not going to check safety or liveness properties. But we'll use Spin for its excellent support for nondeterminism, which is a central idea in how we solve this puzzle. I also believe Spin is an excellent tool for learning about nondeterminism.
+Model checkers are tools designed to verify whether a system satisfies a given correctness specification by exploring all possible computations of the system. For concurrent and nondeterministic programs, this involves systematically exploring all possible interleavings and using backtracking to exhaustively explore the state space. The state space of a program is the set of all possible states that can occur during a computation. 
+
+We're not going to use model checking in the traditional sense in that we're not going to check safety or liveness properties. But we'll use Spin for its excellent support for nondeterminism, which is a central idea in how we solve this puzzle. I also believe Spin is an excellent tool for learning about nondeterminism.
 
 The verification process in Spin typically involves three steps:
 
 - Write the model in Promela and save it in a `.pml` file.
-- Generate a verifier in C by running `spin -a model.pml`. This generates a `pan.c` file (name `pan` is historically derived from ‘protocol analyzer’). Then compile it with a C compiler (e.g., `gcc -o pan pan.c`).
-- Run the verifier (using the shell command `./pan`). It reports whether all computations are correct or there exists a computation that contains an error. If an error is found, the verifier produces a trail file which can be used to reconstruct the erroneous computation. We'll make use of trail files shortly, to extract valid puzzle solutions. More on this in a bit.
+- Generate a verifier. One can generate it by running `spin -a model.pml`. This generates a `pan.c` file (name `pan` is historically derived from ‘protocol analyzer’). Then compile it with a C compiler (e.g., `gcc -o pan pan.c`).
+- Run the verifier. One can run it using the shell command `./pan`. It reports whether all computations are correct or there exists a computation that contains an error. If an error is found, the verifier produces a trail file which can be used to reconstruct the erroneous computation. We'll make use of trail files shortly, to extract valid puzzle solutions. More on this in a bit.
 
 
 Instead of  `spin -a model.pml`, we can also run `spin -run model.pml` to generate the verifier and compile it in one go. 
 
 Before diving into the solution, let’s briefly discuss two Spin/Promela concepts that we'll use to solve the puzzle. 
 
-The first concept is a guard expression that blocks the process when it evaluates to false. Blocking here means that Spin will stop exploring the state space from that state onward. The following statement will block the above process when ‘x’ equals 2:
+The first concept is a guard expression that blocks the process when it evaluates to false. Blocking here means that Spin will not execute the next statement from this process. The following statement will block the above process when ‘x’ equals 2:
 ```
 ! (x == 2);
 ```
 
-The statement above allows the process to make progress only if the condition evaluates to true. The ! operator is a logical negation, so the above expression is true when x is not equal to 2. In other words, the process will proceed only when x is not 2.
+The statement above allows the process to make progress only if the condition evaluates to true. The ! operator is a logical negation, so the above guard expression is true when x is not equal to 2. In other words, the process will proceed only when x is not 2.
 
 The second concept is how nondeterminism and error search work in Spin. Consider the following small Promela program (All Spin code in this post was written using Spin version 6.5.2):
 
@@ -217,7 +221,7 @@ At that point, we could imagine Spin backtracking. Let’s look at the following
 
 <img loading="lazy" src="{{ site.baseurl }}/images/2025-08-18-linkedin-puzzle/five.png" />
 
-After hitting a dead-end, it backtracks to Region 1 (visualized as the red arrow going from 7(Q) back to 2(Q)). It places the queen in cell  2 in region 1 (shown as 2(Q), colored in green). After successfully placing a queen there, it moves on to region 2, where it rejects cell 6 due to a column conflict, and cells 5 and 7 due to diagonal clashes. It then selects cell 8. In region 3, given all constraints, it places the queen in cell 9, and finally, in region 4, respecting constraints, it finds a valid position at cell 15, thus completing one valid solution in compliance with the row, column, and region constraints (the board is shown at the right).
+After hitting a dead-end, it backtracks to Region 1 (visualized as the red arrow going from 7(Q) back to 2(Q)). It places the queen in cell 2 in region 1 (shown as 2(Q), colored in green). After successfully placing a queen there, it moves on to region 2, where it rejects cell 6 due to a column conflict, and cells 5 and 7 due to diagonal clashes. It then selects cell 8. In region 3, given all constraints, it places the queen in cell 9, and finally, in region 4, respecting constraints, it finds a valid position at cell 15, thus completing one valid solution in compliance with the row, column, and region constraints (the solved board is shown at the right).
 
 Now let’s begin working toward a solution in Spin, with the goal of finding all possible solutions to the puzzle. We’ll solve it first for a 4x4 grid as it’s simple, and then the same code, with minor changes, would be used to solve it for a 9x9 grid. 
 
@@ -297,7 +301,7 @@ if
 
 ```
 
-The program then checks and blocks if a queen has already been placed in the chosen row. This is done using a negated expression:
+The program then checks and blocks if a queen has already been placed in the chosen row. This is done using a guard expression:
 ```
 !rows[row];  
 ```
@@ -314,7 +318,7 @@ cols[col] = true;
 result[region-1] = cell;
 ```
 
-Finally, we update the `diagonals`  array to record the adjacent lower diagonal cells of the queen we just placed. These will be used later to ensure that no new queen is placed on an adjacent diagonal. This step prepares the model to block any future placements that would violate the diagonal adjacency constraint.
+Finally, we update the `diagonals` array to record the adjacent lower diagonal cells of the queen we just placed. These will be used later to ensure that no new queen is placed on an adjacent diagonal. This step prepares the model to block any future placements that would violate the diagonal adjacency constraint.
 
 At this point, we’ve finished processing the region, so we move on to the next by restarting the loop. This process repeats until all regions have been processed.
 
@@ -382,11 +386,11 @@ result[8] = 70
 
 <img loading="lazy" src="{{ site.baseurl }}/images/2025-08-18-linkedin-puzzle/seven.png" />
 
-I took the original image and, based on the values in the result array, placed queens (marked as "Q" above) in the image. It looks like a valid solution to the puzzle that satisfies all the constraints.(Please ignore the small ‘x’ in the image above, it was just a placeholder in the original image.)
+I took the original image and, based on the values in the `result` array, placed queens (marked as "Q" above) in the image. It looks like a valid solution to the puzzle that satisfies all the constraints. (Please ignore the small ‘x’ in the image above, it was just a placeholder in the original image.)
 
 Just for fun and curiosity, I wanted to find all solutions to the puzzle without the region constraint, that is, to find all valid queen placements where exactly one queen is placed in each row and column, and no two queens are adjacent, including diagonally.
 
-[This code](https://github.com/wyounas/linkedin_queens/blob/main/queens_wo_region.pml) does that, and it reports 5242 solutions to the puzzle when we drop the region constraint (please note that if you run this, it'll generate as many trail files as there are solutions).
+[This code](https://github.com/wyounas/linkedin_queens/blob/main/queens_wo_region.pml) does that, and it reports 5242 solutions to the puzzle when we drop the region constraint for a `8 x 8` grid (please note that if you run this, it'll generate as many trail files as there are solutions).
 
 In the end, I’d say that Spin’s support for nondeterminism is quite powerful and it can be leveraged to solve certain kinds of problems in an elegant way.
 
@@ -401,13 +405,13 @@ Just as we wrap the code we want to explore in a `proctype` in Promela to model 
 
 We begin by writing the `Init` action, which is executed once at the start. It is responsible for setting up the system state and initializing all relevant variables.
 
-The overall logic is the same as in the Promela version: we process one region at a time. Before placing a queen, we check whether the target cell is on an adjacent diagonal to an already-placed queen. We also use guard conditions via the require keyword to block the action if a queen has already been placed in the row or column we’re trying to use.
+The overall logic is the same as in the Promela version: we process one region at a time. Before placing a queen, we check whether the target cell is on an adjacent diagonal to an already-placed queen. We also use guard conditions via the `require` keyword to block the action if a queen has already been placed in the row or column we’re trying to use.
 
 I wasn’t able to fully explore Fizzbee’s support for nondeterminism, but from what I saw, it appears to not have constructs that look and behave very similarly to those in Spin. (It’s possible I may have overlooked something.) So to find a solution, we add an assertion that checks for an invalid board configuration. Why an invalid board configuration? Because the model checker will then try to find a counterexample, and that counterexample will be a valid solution to the puzzle.
 
 To check for an invalid board, we use an assertion that looks for three things: if there is more than one queen in any row, more than one queen in any column, or if any queens are touching diagonally, or if more than one queen in the region. Here is the full code.
 
-When I run this [code](https://github.com/wyounas/linkedin_queens/blob/main/queens.fizz) for the above 9x9 LinkedIn Queens puzzle, Fizzbee returns one counterexample. And as expected, the counterexample corresponds to a valid LinkedIn Queens solution.
+When I run this [code](https://github.com/wyounas/linkedin_queens/blob/main/queens.fizz) for the above 9x9 LinkedIn Queens puzzle, Fizzbee returns one counterexample. And the counterexample corresponds to a valid LinkedIn Queens solution.
 
 Below is the resulting 9x9 board, where 1 represents a queen placed in that cell:
 
@@ -425,7 +429,7 @@ Below is the resulting 9x9 board, where 1 represents a queen placed in that cell
 
 So far, I’ve only been able to get Fizzbee to output a single counterexample as a solution even when I use a board that has multiple solutions. Currently, Fizzbee doesn’t list all counterexamples. However, JP (the creator of Fizzbee, who is always helpful) showed me an alternative approach. He suggested printing the board inside the assertion code at the end and returning true instead of false.
 
-_Please keep in mind that I’m only human, and there’s a good chance this guide contains errors—even though I’ve done my best to avoid them. If you notice anything off, I’d appreciate a correction. Please feel free to [send me an email](mailto:waqas.younas@gmail.com)._
+_Please keep in mind that I’m only human, and there’s a good chance this post contains errors—even though I’ve done my best to avoid them. If you notice anything off, I’d appreciate a correction. Please feel free to [send me an email](mailto:waqas.younas@gmail.com)._
 
 
 ## References
@@ -433,3 +437,4 @@ _Please keep in mind that I’m only human, and there’s a good chance this gui
 1. PyEda: https://pyeda.readthedocs.io/en/latest/overview.html 
 2. jSpin: https://github.com/motib/jspin
 3. [Ben-Ari, M. (2008). Principles of the Spin model checker. Springer.](https://link.springer.com/book/10.1007/978-1-84628-770-1)
+4. Repository containing all code in this post: https://github.com/wyounas/linkedin_queens
