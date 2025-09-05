@@ -65,9 +65,17 @@ for c in range(n):
         constraints.append(OneHot(*col_vars))
 ```
 
-Finally, we need to add the constraint that enforces the adjacent diagonal rule. Since the earlier constraints already prevent queens from being placed in the same row or column (i.e., non-diagonal adjacency), we only need to ensure that no two queens are placed in adjacent diagonal cells.
+Finally, we need to add the constraint that enforces the adjacent diagonal rule. Since the earlier constraints already prevent queens from being placed in the same row or column (i.e., non-diagonal adjacency), we only need to ensure that no two queens are placed in adjacent diagonal cells. So in a `4x4` grid, if there is a queen at (1,1), then we can't place a queen at the left diagonal (2,0) and right diagonal (2,2) as shown in the illustration below.
 
-For each cell on the board, we want to make sure that if there's a queen in the cell, there cannot be queens on the diagonal cells directly below it. What about the upper diagonals? We don’t have to check for them. Because, when we process row 0, we prevent conflicts with row 1. And when row 1 is processed, those constraints already exist. This way, we avoid duplicate constraints.
+```
+ .  .  .  . 
+ .  Q  .  . 
+ X  .  X  . 
+ .  .  .  . 
+
+```
+
+For each cell on the board, we want to make sure that if there's a queen in the cell, there cannot be queens on the diagonal cells directly below it. What about the upper diagonals? We don’t have to check for them. Because, when we process row 0, we prevent conflicts with row 1. And when row 1 is processed, those constraints already exist. This way, we avoid duplicate constraints. 
 
 Here’s the code that implements this. It includes a few small optimizations: for example, we skip left-diagonal checks in column 0, since there are no cells to the left, and we stop at the second-to-last row, because by that point we’ve already covered all necessary diagonal constraints.
 ```
@@ -75,9 +83,14 @@ for r in range(n-1):  # Stop before last row
         for c in range(n):
             # Below-left diagonal
             if c > 0:
+                # A constraint like ~(X[1,1] & X[2,0]) means you can't have 
+                # queens at both (1,1) and (2,0) because ~(a & b) means both
+                # 'a' and 'b' can't be both true at the same time. 
                 constraints.append(~(X[r,c] & X[r+1, c-1]))
             # Below-right diagonal
             if c < n-1:
+                # A constraint like ~(X[1,1] & X[2,2]) means you can't have 
+                # queens at both (1,1) and (2,2)
                 constraints.append(~(X[r,c] & X[r+1, c+1]))
 ```
 
