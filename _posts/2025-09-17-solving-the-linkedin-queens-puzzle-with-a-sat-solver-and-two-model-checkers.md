@@ -127,18 +127,18 @@ Now let’s try to solve the puzzle using a model checker, again with the goal o
 
 Model checkers are tools designed to verify whether a system satisfies a given correctness specification by exploring all possible computations of the system. For concurrent and nondeterministic programs, this involves systematically exploring all possible interleavings and using backtracking to exhaustively explore the state space. The state space of a program is the set of all possible states that can occur during a computation. 
 
-We are not going to use model checking in the traditional sense in that we are not going to check safety or liveness properties. Instead, we’ll use Spin for its excellent support for nondeterminism, which is the key to solving this puzzle. More on this below, with an example.
+We are not going to use model checking in the traditional sense in that we are not going to check safety or liveness properties. Instead, we’ll use Spin for its excellent support for nondeterminism, which we also rely on to solve this puzzle. More on this below, with an example.
 
-Spin analyzes the correctness of a system through a verification process. This verification process typically involves three main steps::
+Before we turn to that example, let’s quickly review Spin’s verification process. Spin analyzes the correctness of a system through verification, which typically involves three main steps:
 
 - Write the model in Promela and save it in a `.pml` file.
 - Generate a verifier. One can generate it by running _`spin -a model.pml`_. This generates a `pan.c` file (name `pan` is historically derived from ‘protocol analyzer’). Then compile it with a C compiler (e.g., _`gcc -o pan pan.c`_).
-- Run the verifier. One can run it using the shell command _`./pan`_. It reports whether all computations are correct or there exists a computation that contains an error. If an error is found, the verifier produces a trail file which can be used to reconstruct the erroneous computation. We'll make use of trail files shortly, to extract valid puzzle solutions. More on this in a bit.
+- Run the verifier. One can run it using the shell command _`./pan`_. It reports whether all computations are correct or there exists a computation that contains an error. If an error is found, the verifier produces a trail file which can be used to reconstruct the erroneous computation. We'll make use of trail files shortly, to extract valid puzzle solutions.
 
 
-Before diving into the solution, let’s briefly discuss two Spin concepts that we'll use to solve the puzzle. 
+We now turn to an example that introduces two Spin concepts, blocking expressions and nondeterminism, which we’ll use to solve the puzzle.
 
-The first concept is a guard expression that blocks execution when it evaluates to false. In Spin terms, this means the process that was running cannot move on to its next statement. For example, the following statement blocks execution when _`x`_ equals 2:
+The first concept is a blocking expression that blocks execution when it evaluates to false. In Spin terms, this means the process that was running cannot move on to its next statement. For example, the following statement blocks execution when _`x`_ equals 2:
 
 ```
 ! (x == 2);
@@ -152,7 +152,7 @@ The second concept is how nondeterminism and error search work in Spin. Consider
 
 We wrap our code in a process-like executable unit using the _`proctype`_ keyword in Promela. When we prefix a _`proctype`_ definition with the _`active`_ keyword, we are telling the model checker to automatically start that process when Spin begins execution. 
 
-The _`if`_ statement above (starting with the keyword _`if`_ and ending with _`fi`_) is how nondeterministic choice is expressed in Promela and Spin. In this case, the _`if`_ block assigns a value to _`x`_ nondeterministically. After this _`if`_ statement is executed, _`x`_ will have one of the values: 1, 2, 3, 4, or 5.
+The _`if`_ statement as written above (starting with the keyword _`if`_ and ending with _`fi`_) is how nondeterministic choice is expressed in Promela and Spin. Inside an _`if`_ statement, each option starts with `::`. The first statement after `::` is called a guard. If more than one guard statement is executable, Spin chooses one of them nondeterministically. In this case, the _`if`_ block assigns a value to _`x`_ nondeterministically. After this _`if`_ statement is executed, _`x`_ will have one of the values: 1, 2, 3, 4, or 5.
 
 To further understand how this nondeterminism will play out, below is an automaton in _Figure 1_ that represents the possible transitions for this code (generated using a tool called jSpin [2]):
 
@@ -215,7 +215,7 @@ This ability of Spin to take code with nondeterminism and systematically backtra
 
 So how do we find those valid combinations that are solutions to LinkedIn Queens puzzle?
 
-_Figure 1_ helped me come up with a solution. In that figure, we chose a value for _`x`_ nondeterministically from five options. The model checker then explored all five possible computations, one for each choice. Similarly, if we can nondeterministically choose a cell from each region, the model checker will evaluate all possible combinations of four cells, with one cell chosen from each region.
+_Figure 1_ helped me come up with a solution. In that figure, we chose a value for _`x`_ nondeterministically from five options. The model checker then explored all five possible computations, one for each choice. Similarly, if we let the model checker nondeterministically pick one cell from each region, while enforcing the puzzle rules, and then backtrack through all possibilities, we can find all valid solutions.
 
 To visualize this, I found it helpful to imagine a tree-like structure, as shown in _Figure 2_ below (If the image appears unclear, please consider opening it in a new tab.). It’s of course not ideal, but it helped me think through the problem. For both _Figure 2_ and _Figure 3_ below, we use the same board and colored region configuration as in the Python code above—where 1s represent region colored red, 2s represent region colored green, 3s represent region in yellow, and 4s represent region in pink. The board layout looks like this:
 ```
@@ -231,7 +231,7 @@ In this configuration:
 - Region 3 includes cells 9, 10, 11, 12
 - Region 4 includes cells 13, 14, 15, 16
 
-We could now imagine a tree with four levels. At Level 0, you see all the cells from Region 1. From each of those cells, there are branches leading to every cell in Region 2.
+We could now imagine a tree with four levels. At level 0, you see all the cells from Region 1. From each of those cells, there are branches leading to every cell in Region 2.
 In the figure, in Region 1, we show a branch going out from cell 1 just to save space—but you can imagine similar branches coming from cells 2, 3, and 4 as well. And the same for all cells in level 1 and 2. 
 
 <img loading="lazy" src="{{ site.baseurl }}/images/2025-08-18-linkedin-puzzle/four.png" />
@@ -272,7 +272,7 @@ inline ChooseRegion2() {
 }
 ```
 
-And so on. Why make the model checker choose cells nondeterministically? We can connect this to _Figures 2 and 3_ and the explanation that followed. By organizing regions and their cells as shown in these figures you can see how this structure shows how the model checker might systematically explore all combinations—by branching through every possible choice at each level.
+And so on. Why make the model checker choose cells nondeterministically? We can connect this to _Figures 2 and 3_ and the explanation that followed. By organizing regions and their cells as shown in these figures you can see how this structure shows how the model checker might systematically explore all combinations.
 
 We also define a few variables at the top of the model:
 
@@ -319,7 +319,7 @@ if
 
 ```
 
-The program then checks and blocks if a queen has already been placed in the chosen row. This is done using a guard expression:
+The program then checks and blocks if a queen has already been placed in the chosen row. This is done using a blocking expression:
 ```
 !rows[row];  
 ```
@@ -431,15 +431,36 @@ To find a solution using FizzBee, I applied similar ideas to those I used with P
 
 Just as we wrap the code we want to explore in a _`proctype`_ in Promela to model process-like behavior, in FizzBee we use an _`action`_ block to define such executable units.
 
-We begin by writing the _`Init`_ action, which is executed once at the start. It is responsible for setting up the system state and initializing all relevant variables.
+We begin with the _Init_ action, a special action that runs once at the start. It sets up the system state and initializes all the variables. After that, the main search for solutions happens inside the _PlaceQueens_ action.
 
-We choose a cell with the keyword _`any`_, and we use _`require`_ guards to block the action unless the row and column are free and all four diagonal neighbors are empty. 
+_PlaceQueens_ goes through the regions one by one. For each region, it picks a candidate cell, checks the puzzle constraints, places a queen if allowed, updates the bookkeeping arrays, and then moves on to the next region. 
 
-Using the _`any`_ keyword makes the model checker explore each possible cell choice, while _`require`_ blocks the action and helps enforce the puzzle constraints.
+Let's take a quick look at the FizzBee constructs we use to carry out some of these steps.
 
-To find a solution, we add an assertion that checks for an invalid board configuration. Why an invalid board configuration? Because the model checker will then try to find a counterexample, and that counterexample will be a valid solution to the puzzle.
+To pick a cell, we use the _any_ keyword. This makes the model checker explore every possible cell in the current region.
 
-To check for an invalid board, we assert four things: (1) any row with more than one queen, (2) any column with more than one queen, (3) any pair of queens touching diagonally, or (4) any region with a queen count not equal to one. A counterexample to this assertion is a valid solution.
+To enforce the puzzle constraints, we use the _require_ keyword. A _require_ acts like a guard: the step is allowed only if the row and column are free, the region has no queen yet, and the four diagonal neighbors are empty. If any of these checks fail, the action does not proceed on that path.
+
+FizzBee also lets us enforce correctness properties. We can write safety properties, things that should never happen, using the _always_ keyword. For example, to require that a variable _temperature_ always stays below zero, we can write:
+
+```
+always assertion AlwaysLessThan0:
+  return temperature < 0
+```
+
+To check this invariant, the model checker looks for counterexamples where `temperature >= 0`, thereby ensuring correctness.
+
+In our puzzle, we do the same: we define the invariant as an invalid board. The model checker then searches for counterexamples, and each counterexample is a valid solution.
+
+An invalid board means these things:
+
+1. Not all queens are placed,
+2. A row with more than one queen,
+3. A column with more than one queen,
+4. A pair of queens touching diagonally, or
+5. A region that doesn’t contain exactly one queen.
+
+If any of these conditions hold, the board is invalid. A counterexample to this assertion is a valid solution.
 
 When I run this [code](https://github.com/wyounas/linkedin_queens/blob/main/queens.fizz) for the above `9x9` LinkedIn Queens puzzle, FizzBee returns one counterexample. And the counterexample corresponds to a valid LinkedIn Queens solution.
 
