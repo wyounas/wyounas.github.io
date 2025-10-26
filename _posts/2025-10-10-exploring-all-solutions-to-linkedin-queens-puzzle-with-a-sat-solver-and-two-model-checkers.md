@@ -1,7 +1,7 @@
 ---
 layout: post
-title:  "Solving the LinkedIn Queens Puzzle with a SAT Solver and Two Model Checkers"
-date: 2025-09-18
+title:  "Exploring All Solutions to LinkedIn Queens Puzzle with a SAT Solver and Two Model Checkers"
+date: 2025-10-18
 categories: ["model-checking", "puzzles"]
 ---
 
@@ -14,7 +14,7 @@ LinkedIn Queens is a puzzle played on an `n × n` grid with the following rules:
 - Each row, column, and colored region must contain exactly one queen.
 - No two queens may be adjacent, including diagonally. However, diagonals at a distance are allowed.
 
-In this post, we aim to find all solutions, not just one, to the puzzle. And we do that using a Python-based SAT solver and two model checkers, namely Spin and FizzBee. To keep things simple, we’ll solve the puzzle for a `4x4` grid using the SAT Solver, but we will solve it both for `4x4` and `9x9` using model checkers. 
+In this post, we find all solutions, not just one, using a Python‑based SAT solver and two model checkers (Spin and FizzBee). To keep things simple, we’ll solve the puzzle for a `4x4` grid using the SAT solver, but we will solve it both for `4x4` and `9x9` using model checkers. 
 
 The goal here is to explore how various computational approaches can tackle the same problem. For one, I believe there is a touch of elegance in how SAT solvers can sometimes reformulate complex problems. I also believe that model checkers, for instance, aren't just powerful tools for ensuring correctness, but also a great way to learn about nondeterminism. 
 
@@ -25,9 +25,9 @@ All the code in this post is linked in relevant sections, and the repository con
 I first came across this puzzle in a nice [blog post](https://buttondown.com/hillelwayne/archive/solving-linkedin-queens-with-smt/) by Hillel Wayne, whose blog I enjoy reading, where he solved it using an SMT solver called Z3. 
 
 
-In the past, I had used a Python-based SAT solver called PyEDA [1], and I thought it would be interesting to use it to find all solutions to the LinkedIn Queens puzzle. Let’s solve it for a `4x4` grid though the code can be extended to solve it for a `9x9` grid. The code uses Python 3.13.1 and PyEDA 0.29.0. 
+In the past, I had used a Python-based SAT solver called PyEDA [1], and I thought it would be interesting to use it to find all solutions to the LinkedIn Queens puzzle. Let’s solve it for a `4x4` grid though the code extends to `9x9` grid. The code uses Python 3.13.1 and PyEDA 0.29.0. 
 
-To get started with PyEDA, we represent the 4×4 grid as a two-dimensional bit vector:
+To get started with PyEDA, we represent the 4×4 grid as a two‑dimensional array of Boolean variables:
 ```python
 X = exprvars('x', 4, 4)
 ```
@@ -54,7 +54,7 @@ regions = {
    
 Next, we encode the constraints that reflect the rules of the puzzle. 
 
-The first constraint ensures that each row contains exactly one queen. To add the constraint, we make use of the OneHot() method in PyEDA which provides a guarantee that only one of the variables in a boolean formula is true at any given moment. Here’s how we express this constraint for each row:
+The first constraint ensures that each row contains exactly one queen. To add the constraint, we make use of the OneHot() function in PyEDA which enforces that exactly one variable in the list is true. Here’s how we express this constraint for each row:
 ```python
 for r in range(n):
     row_vars = [X[r,c] for c in range(n)]
@@ -68,9 +68,9 @@ for c in range(n):
     constraints.append(OneHot(*col_vars))
 ```
 
-Similarly, we add a region constraint. For each region, specified in a dictionary above, we apply `OneHot` again. This is what enforces the “one queen per region” rule even when regions are irregular.
+Similarly, for each colored region we also use `OneHot` to enforce one‑queen‑per‑region rule.
 
-Finally, we need to add the constraint that enforces the adjacent diagonal rule. In a `4x4` grid, if there is a queen at `(1,1)`, then we cannot place a queen at the upper-left diagonal `(0, 0)`, upper-right diagonal `(0, 2)`, lower-left diagonal `(2,0)` and lower-right diagonal `(2,2)` as shown in the illustration below.
+Finally, we need to add the constraint that enforces the adjacent diagonal rule. Because rows and columns already have exactly one queen, horizontal or vertical neighbors can’t happen. The only remaining local conflict is immediate diagonal adjacency. For example, a queen at (1, 1) forbids (0, 0), (0, 2), (2, 0), and (2, 2) as shown in the illustration below.
 
 ```
  X  .  X  . 
@@ -80,17 +80,16 @@ Finally, we need to add the constraint that enforces the adjacent diagonal rule.
 
 ```
 
-To enforce the diagonal constraint, we forbid placing a queen on the diagonal cells only directly below each cell. By only forbidding 
-lower-left and lower-right adjacent diagonals, we list each diagonal pair once (and avoid duplicate constraints). 
+We only add constraints for each cell and its two lower diagonals (r+1, c±1). That way, every adjacent‑diagonal pair appears exactly once, when we visit its higher row. Adding the symmetric “upper” pairs would just duplicate constraints.
 
-Here is the code that implements this. It includes a few small optimizations: for example, we skip left-diagonal checks in column 0, since there are no cells to the left, and we stop at the second-to-last row, because by that point we’ve already covered all necessary diagonal constraints.
+Here is the code that implements this. It includes a few small optimizations: for example, we skip left-diagonal checks in column 0, since there are no cells to the left, and we stop at the second-to-last row, because all necessary diagonal pairs have already been covered.
 ```python
 for r in range(n-1):  # Stop before last row
         for c in range(n):
             # Below-left diagonal
             if c > 0:
                 # A constraint like ~(X[1,1] & X[2,0]) means you can't have 
-                # queens at both (1,1) and (2,0) because ~(a & b) means both
+                # queens at both (1,1) and (2,0) because ~(a & b) implies both
                 # 'a' and 'b' can't be both true at the same time. 
                 constraints.append(~(X[r,c] & X[r+1, c-1]))
             # Below-right diagonal
@@ -100,11 +99,11 @@ for r in range(n-1):  # Stop before last row
                 constraints.append(~(X[r,c] & X[r+1, c+1]))
 ```
 
-That’s pretty much all we need to do to get not just one, but all possible solutions to the puzzle. We use PyEDA’s satisfy_all() method to generate all queen placements that satisfy our puzzle constraints. 
+That’s pretty much all we need to do to get not just one, but all possible solutions to the puzzle. We combine all the constraints and call PyEDA’s `satisfy_all()` to enumerate every valid board.
 
 Below are two valid solutions for the above board with specific regions. Here is the [complete code](https://github.com/wyounas/linkedin_queens/blob/main/queens.py) that generated these two solutions.
 
-Solution 1 - Queens at cells: [3, 5, 12, 14]:
+Solution 1 - Queens at cells: [3, 5, 12, 14] (Cells are numbered from 1 to 16 (top‑left is 1, bottom‑right is 16)):
 ```
  .  .  Q  . 
  Q  .  .  . 
@@ -144,7 +143,7 @@ The first concept is a blocking expression that blocks execution when it evaluat
 ! (x == 2);
 ```
 
-The statement above lets the process move forward only if the condition is true. The ! symbol means ‘negation,’ so the guard is true when _`x`_ is not equal to 2. So, the process continues only when _`x`_ is not 2.
+The statement above lets the process move forward only if the condition is true. The ! symbol means ‘negation,’ so the statement is true when _`x`_ is not equal to 2. So, the process continues only when _`x`_ is not 2.
 
 The second concept is how nondeterminism and error search work in Spin. Consider the following small program (All Spin code in this post was written using Spin version 6.5.2):
 
@@ -166,7 +165,7 @@ At the end of the above program, we have an assert that checks whether `x == 1`.
 
 How does it find a counterexample? The assert causes the model checker to backtrack and explore all possible counterexamples from all computations. It tries to find computations where _`x`_ is not set to 1. For example, from five computations shown in the above figure, it will find paths where _`x`_ is set to 3, 4, or 5—but not 2, because that choice was blocked earlier using the guard expression.
 
-Here’s a truncated version of the assertion violation report you would see when you run your model (assuming the above code is saved in a file named atest.pml):
+Here’s a truncated version of the assertion violation report you would see when you run your model (assuming the above code is saved in a file named _atest.pml_):
 
 ```
 $ spin -a atest.pml
@@ -187,7 +186,7 @@ $ spin -t -p atest.pml
 spin: atest.pml:13, Error: assertion violated
 ```
 
-The output above shows that the assertion failed in the computation where _`x`_ was set to 3.  But there are other counterexamples that would also cause the assertion to fail, for example, when _`x`_ is set to 4 or 5. So how do we find all these counterexamples? We can do that using the following command, which enables exploration of all computations:
+The output above shows that the assertion failed in the computation where _`x`_ was set to 3.  But there are other counterexamples that would also cause the assertion to fail, for example, when _`x`_ is set to 4 or 5. So how do we find all these counterexamples? We can do that using the following command:
 
 ```
 ./pan -E -c0 -e    
@@ -236,12 +235,16 @@ In the figure, in Region 1, we show a branch going out from cell 1 just to save 
 
 <img loading="lazy" src="{{ site.baseurl }}/images/2025-08-18-linkedin-puzzle/four.png" />
 
+_Figure 2_ 
+
 Now let’s see what’s going on in Figure 2. A queen is first placed in cell 1, and then the search moves on to Region 2, where cells 5 and 6 are ignored because of the constraints. It places the queen in cell 7. The board at this point is shown on the right. When it moves to Region 3, it hits a dead-end—there is no cell available where the queen can be placed without violating the constraints. 
 
 At that point, we could imagine Spin backtracking. Let’s look at the following illustration to see what happens next. 
 
 
 <img loading="lazy" src="{{ site.baseurl }}/images/2025-08-18-linkedin-puzzle/five.png" />
+
+_Figure 3_ 
 
 After hitting a dead-end, it backtracks to Region 1 (visualized as the red arrow going from 7(Q) back to 2(Q)). It places the queen in cell 2 in region 1 (shown as 2(Q), colored in green). After successfully placing a queen there, it moves on to region 2, where it rejects cell 6 due to a column conflict, and cells 5 and 7 due to diagonal clashes. It then selects cell 8. In region 3, given all constraints, it places the queen in cell 9, and finally, in region 4, respecting constraints, it finds a valid position at cell 15, thus completing one valid solution in compliance with the row, column, and region constraints (the solved board is shown at the right).
 
@@ -282,14 +285,11 @@ byte result[N];
 bool rows[N];      
 bool cols[N];           
 bool regions[N];
-bool diagonals[N*N]; 
 ```
 
 The _`result`_ array stores the final solution. Each _`result[region-1]`_ holds the cell where a queen is placed in that region. For example, `result[0] = 2` means the queen is placed in cell 2 in region 1.
 
 The array _`rows`_ keeps track of whether a queen has already been placed in a given row. For example, _`rows[i]`_ is true if there is a queen in row _`i`_. Similarly, _`cols`_ keeps track of whether a queen has been placed in a given column. 
-
-The array _`diagonals`_ stores information about the diagonal constraints. 
 
 We process the board region by region, and record each chosen cell in the _`result`_ array. 
 
@@ -301,21 +301,18 @@ The general outline of what happens in the program is as follows. As the program
     - Ensures that we are not placing a queen on an adjacent diagonal. If we are, the process is blocked.
     - Mark the row and column as processed.
     - Places the queen and records its position in the _`result`_ array.
-    - Mark the queen’s adjacent diagonals to prevent placing another queen in those cells later.
-
-
-We use `assert(false)` at the end to make the model checker backtrack and explore all computations that successfully exit the loop. And in the end, we print the results.
+-  After exiting the loop, we use `assert(false)` at the end to make the model checker backtrack and explore all computations that successfully exit the loop. 
 
 Let’s quickly go over these one by one. 
 
 We start a loop to process the board region by region, and the first step inside the loop is to choose region cells nondeterministically using the following code:
 ``` 
-if
+    if
         :: region == 1 -> ChooseRegion1()
         :: region == 2 -> ChooseRegion2()
         :: region == 3 -> ChooseRegion3()
         :: region == 4 -> ChooseRegion4()
-        fi
+    fi
 
 ```
 
@@ -326,11 +323,11 @@ The program then checks and blocks if a queen has already been placed in the cho
 
 As we discussed earlier, the execution continues if above is true, meaning the row is still available. It’s important to note that, because of these blocking statements, many computations will be blocked, but some won’t. To find valid solutions to the puzzle, we’ll make use of the assertion claim. More on this in a bit.
 
-After checking the row, we similarly check and block the placement if a queen has already been placed in the same column. 
+After checking the row, we similarly block the placement if a queen has already been placed in the same column. We also block the move if a queen has already been placed in this region. 
 
 For the adjacency constraint, before placing a queen we check the immediate diagonal neighbors—upper-left, upper-right, lower-left, and lower-right. If any of those cells already contain a queen, the move is blocked. 
 
-Once a valid cell is found, we mark the row and column as occupied and we store the queen’s position in the _`result`_ array:
+Once a valid cell is found, we mark the row, column, and region as occupied and we store the queen’s position in the _`result`_ array:
 
 ```
 rows[row] = true;
@@ -340,7 +337,7 @@ result[region-1] = cell;
 
 At this point, we’ve finished processing the region, so we move on to the next by restarting the loop. This process repeats until all regions have been processed.
 
-As you can see, near the end, we’ve not only printed the _`result`_ array, but also, we’ve added this line:
+As you can see, near the end, after the loop, we’ve added this line:
 ```
 assert(false); 
 ```
@@ -380,7 +377,7 @@ If we plot the above values from the result array onto a board, we get a valid s
  .  .  Q  . 
 ```
 
-But this gives us just one solution to the puzzle. How can we find all solutions, ideally without adding any more code to our existing model? As we did earlier, by running _`./pan -E -c0 -e`_. You’ll get two solutions to the puzzle in respective trail files i.e., _queenfourbyfour.pml1.trail_ and _queenfourbyfour.pml2.trail_. Here is the second solution:
+But this gives us just one solution to the puzzle. How can we find all solutions, ideally without adding any more code to our existing model? As we did earlier, by running _`./pan -E -c0 -e`_. You’ll get two solutions to the puzzle in respective trail files (i.e., _queenfourbyfour.pml1.trail_ and _queenfourbyfour.pml2.trail_). Here is the second solution:
 
 ```
 result[0] = 3
@@ -425,32 +422,116 @@ In the end, I’d say that Spin’s support for nondeterminism is quite powerful
 ## Solving the puzzle with FizzBee
 
 
-There’s another promising model checker on the horizon called [FizzBee](https://fizzbee.io/). Its syntax closely resembles Python, which makes it more approachable, especially for programmers who prefer Python-like semantics.
+There’s another promising model checker on the horizon called [FizzBee](https://fizzbee.io/). Its syntax is close to Python, which makes it approachable for Python programmers.
 
 To find a solution using FizzBee, I applied similar ideas to those I used with Promela and Spin.
 
 Just as we wrap the code we want to explore in a _`proctype`_ in Promela to model process-like behavior, in FizzBee we use an _`action`_ block to define such executable units.
 
-We begin with the _Init_ action, a special action that runs once at the start. It sets up the system state and initializes all the variables. After that, the main search for solutions happens inside the _PlaceQueens_ action.
-
-_PlaceQueens_ goes through the regions one by one. For each region, it picks a candidate cell, checks the puzzle constraints, places a queen if allowed, updates the bookkeeping arrays, and then moves on to the next region. 
-
-Let's take a quick look at the FizzBee constructs we use to carry out some of these steps.
-
-To pick a cell, we use the _any_ keyword. This makes the model checker explore every possible cell in the current region.
-
-To enforce the puzzle constraints, we use the _require_ keyword. A _require_ acts like a guard: the step is allowed only if the row and column are free, the region has no queen yet, and the four diagonal neighbors are empty. If any of these checks fail, the action does not proceed on that path.
-
-FizzBee also lets us enforce correctness properties. We can write safety properties, things that should never happen, using the _always_ keyword. For example, to require that a variable _temperature_ always stays below zero, we can write:
+We begin with the _Init_ action, a special action that runs once at the start. It sets up the state. Here is what _Init_ looks like in our case:
 
 ```
-always assertion AlwaysLessThan0:
-  return temperature < 0
+action Init:
+    N = 9  # 9x9 board
+    # Define REGIONS as a list of cell IDs; omitted here for brevity
+    #Also, we map each cell to (row, col) in the code
+    board = [[0 for _ in range(N)] for _ in range(N)]
+
+    row_queen_placed_in = [False for _ in range(N)]
+    col_queen_placed_in = [False for _ in range(N)]
+    region_queen_placed_in = [False for _ in range(N)]
+    diagonals_blocked = [[False for _ in range(N)] for _ in range(N)]
+    region_idx = 0
+    done = False 
 ```
 
-To check this invariant, the model checker looks for counterexamples where `temperature >= 0`, thereby ensuring correctness.
+After that, the main search for solutions happens inside the _PlaceQueens_ action.
 
-In our puzzle, we do the same: we define the invariant as an invalid board. The model checker then searches for counterexamples, and each counterexample is a valid solution.
+_PlaceQueens_ first checks whether all regions are filled; if so, it sets _done_ to true and returns. Otherwise, it processes the regions one by one: for each region it picks a candidate cell, checks the constraints, places a queen if allowed, updates the bookkeeping, and then advances to the next region. 
+
+Let’s take a quick look at the FizzBee constructs we use as we process each region in turn.
+
+We start a loop to iterate over each region. Then to pick a cell, we use the _any_ keyword. This makes the model checker explore every possible cell in the current region. This allows FizzBee to systematically explore valid combinations of cell placements across all regions.
+
+```
+
+atomic action PlaceQueens:
+    if all([queen for queen in region_queen_placed_in]):
+        done = True 
+        return 
+    
+    while region_idx < N:
+        cells_in_region = REGIONS[region_idx]
+        cell = any cells_in_region
+
+        row = (cell - 1) // N
+        col = (cell - 1) % N
+```
+
+
+We then use _require_ guards to enforce all puzzle rules. Each guard ensures that the row, column, and region are free, and that no queen is placed on any of the four immediate diagonals. If any guard fails, the action stops; otherwise, we place the queen and mark the row, column, and region as used. We also then block the 
+four immediate diagonals so they can't be used. 
+```
+    
+    require row_queen_placed_in[row] == False  # row must be free
+    require col_queen_placed_in[col] == False  # col must be free
+    require region_queen_placed_in[region_idx] == False  # region must be free
+    require diagonals_blocked[row][col] == False  # cell must not be diagonally blocked
+    
+    # commit placements
+    board[row][col] = 1
+    row_queen_placed_in[row] = True
+    col_queen_placed_in[col] = True
+    region_queen_placed_in[region_idx] = True
+    
+    # block the four immediate diagonal neighbors
+    if row > 0 and col > 0:
+        diagonals_blocked[row-1][col-1] = True # upper-left
+    if row > 0 and col < N-1:
+        diagonals_blocked[row-1][col+1] = True # upper-right
+    if row < N-1 and col > 0:
+        diagonals_blocked[row+1][col-1] = True # lower-left
+    if row < N-1 and col < N-1:
+        diagonals_blocked[row+1][col+1] = True # lower-right
+
+```
+
+FizzBee also lets us specify safety properties, properties that state a ‘bad thing never happens.’ We write these properties using the _always_ keyword. For example, to express that a variable _temperature_ should never be greater than zero, we can write:
+
+```
+always assertion AlwaysLessThanEqualsZero:
+  return temperature <= 0
+```
+
+To check this invariant, the model checker looks for counterexamples where _temperature_ is greater than zero. If no such counterexample exists, the invariant holds and the model is considered correct. 
+
+Here’s a small FizzBee example where we return false if the temperature is greater than zero. Since the temperature is set to 5 in the _Init_ action, the invariant fails, false is returned, and FizzBee reports this as an invariant violation, with a counterexample trace showing us the state where the invariant did not hold.
+
+```
+# A simple example showing how returning False triggers a counterexample
+
+action Init:
+    temperature = 5
+
+always assertion AlwaysLessThanEqualsZero:
+    if temperature <= 0:
+        return True 
+    return False 
+```
+
+When we run the above model, FizzBee reports:
+
+```
+FAILED: Model checker failed. Invariant:  AlwaysLessThanEqualsZero
+------
+Init
+--
+state: {"temperature":"5"}
+------
+
+```
+In our puzzle, the same logic applies. We define the invariant as an “invalid board.” When that invariant fails, meaning none of the invalid conditions hold, FizzBee reports a counterexample, which is a valid solution to the puzzle.
+
 
 An invalid board means these things:
 
@@ -460,11 +541,11 @@ An invalid board means these things:
 4. A pair of queens touching diagonally, or
 5. A region that doesn’t contain exactly one queen.
 
-If any of these conditions hold, the board is invalid. A counterexample to this assertion is a valid solution.
+If any of these conditions hold, the board is invalid. A counterexample to this assertion is a valid solution. We check for these assertions in the invariant section that begins with the _always assertion_ keyword. When none of these invalid-board conditions hold, the invariant returns _False_. FizzBee then reports a counterexample, a board that violates the “invalid board” assertion, which represents a valid solution to the puzzle.
 
-When I run this [code](https://github.com/wyounas/linkedin_queens/blob/main/queens.fizz) for the above `9x9` LinkedIn Queens puzzle, FizzBee returns one counterexample. And the counterexample corresponds to a valid LinkedIn Queens solution.
+When I run this [code](https://github.com/wyounas/linkedin_queens/blob/main/queens.fizz) for the above `9x9` LinkedIn Queens puzzle, FizzBee returns one counterexample. You can find it by checking the value of the _board_ variable in the output. And the counterexample corresponds to a valid LinkedIn Queens solution.
 
-Below is the resulting `9x9` board, where 1 represents a queen placed in that cell:
+Below is the resulting `9×9` board, taken from the _board_ variable in the counterexample. A value of 1 marks a cell where a queen is placed.
 
 ```
 [0, 0, 0, 0, 0, 1, 0, 0, 0]
@@ -480,7 +561,7 @@ Below is the resulting `9x9` board, where 1 represents a queen placed in that ce
 
 So far, I’ve only been able to get FizzBee to output a single counterexample as a solution even when I use a board that has multiple solutions. Currently, FizzBee doesn’t list all counterexamples. However, JP (the creator of FizzBee, who is always helpful) showed me an alternative approach. He suggested printing the board inside the assertion code at the end and returning true instead of false.
 
-_Please keep in mind that I’m only human, and there’s a good chance this post contains errors—even though I’ve done my best to avoid them. If you notice anything off, I’d appreciate a correction. Please feel free to [send me an email](mailto:waqas.younas@gmail.com)._
+_Please keep in mind that I’m only human, and there’s a chance this post contains errors, even though I’ve done my best to avoid them. If you notice anything off, I’d appreciate a correction. Please feel free to [send me an email](mailto:waqas.younas@gmail.com)._
 
 
 ## References
