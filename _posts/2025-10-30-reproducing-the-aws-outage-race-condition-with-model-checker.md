@@ -5,11 +5,11 @@ date: 2025-10-30
 categories:  [aws, concurrency]
 ---
 
-AWS published a post-mortem about a recent outage [1]. Big systems like theirs are complicated mixes of software and hardware, and things sometimes go wrong. For all their scale, AWS has a remarkably good record of keeping things running.
+AWS published a post-mortem about a recent outage [1]. Big systems like theirs are complex, and when you operate at that scale, things sometimes go wrong. Still, AWS has an impressive record of reliability.
 
 The post-mortem mentioned a race condition, which caught my eye. I don’t know all the details of AWS’s internal setup, but using the information in the post-mortem and a few assumptions, we can try to reproduce a simplified version of the problem. 
 
-As a small experiment, we’ll use a model checker to see how such a race could happen. Formal verification can’t prevent every failure, but it helps us think more clearly about correctness and also helps us reason about subtle concurrency bugs. For this, we’ll use the Spin model checker, which uses the Promela language.
+As a small experiment, we’ll use a model checker to see how such a race could happen. Formal verification can’t prevent every failure, but it helps us think more clearly about correctness and reason about subtle concurrency bugs. For this, we’ll use the Spin model checker, which uses the Promela language.
 
 There’s a lot of detail in the post-mortem, but for simplicity we’ll focus only on the race-condition aspect. The incident was triggered by a defect in DynamoDB’s automated DNS management system. The components of this system involved in the incident were the DNS Planner, DNS Enactor, and Amazon Route 53 service.
 
@@ -17,13 +17,13 @@ The DNS Planner creates DNS plans, and the DNS Enactors look for new DNS plans a
 
 Here is an illustration showing these components (if the images appear small, please open them in a new browser tab):
 
-<img loading="lazy" src="{{ site.baseurl }}/images/2025-10-26-aws-outage-race-conditions/aws-dns.png" alt="aws dns management system"  />
+<img loading="lazy" src="{{ site.baseurl }}/images/2025-10-30-aws-outage-race-conditions/aws-dns.png" alt="aws dns management system"  />
 
 My understanding of how the DNS Enactor works is as follows: it picks up the latest plan and, before applying it, performs a one-time check to ensure the plan is newer than the previously applied one. It then applies the plan and invokes a clean-up process. During the clean-up, it identifies plans significantly older than the one it just applied and deletes them.
 
 Using the details from the incident report, we could sketch an interleaving that could explain the race condition. Two Enactors running side by side: Enactor 2 applies a new plan and starts cleaning up, while the other, running just a little behind, applies an older plan, making it an active one. When the Enactor 2 finishes its cleanup, it deletes that plan, and the DNS entries disappear. Here’s what that sequence looks like:
 
-<img loading="lazy" src="{{ site.baseurl }}/images/2025-10-26-aws-outage-race-conditions/race-condition-interleaving.png" alt="aws dns race condition"  />
+<img loading="lazy" src="{{ site.baseurl }}/images/2025-10-30-aws-outage-race-conditions/race-condition-interleaving.png" alt="aws dns race condition"  />
 
 
 Let's try to uncover this interleaving using a model checker. We’ll create a DNS Planner process that produces plans, and DNS Enactor processes that pick them up. The Enactor will check whether the plan it’s about to apply is newer than the previous one, update the state of certain variables to simulate changes in Route 53, and finally clean up the older plans.
@@ -34,7 +34,7 @@ Inside each DNS Enactor, we track the key aspects of system state. The Enactor k
 
 Here’s the code for the DNS Planner:
 
-```
+```promela
 active proctype Planner() {
     byte plan = 1;
     
@@ -55,13 +55,13 @@ It creates plans and sends them over a channel (_plan_ is being sent to the chan
 
 We start two DNS Enactor processes by specifying the number of enactors after the _active_ keyword.
 
-```
+```promela
 active [NUM_ENACTORS] proctype Enactor() 
 ```
 
 The DNS Enactor waits for plans and receives them (? indicates receiving from a channel). It then performs a staleness check, updates the state of certain variables to simulate changes in Route 53, and finally cleans up the older plans.
 
-```
+```promela
 :: plan_channel ? my_plan ->
     snapshot_current = current_plan;
 
@@ -90,12 +90,12 @@ The DNS Enactor waits for plans and receives them (? indicates receiving from a 
 ```
 
 
-How do we discover the race condition? The idea is this: we express as an invariant what must always be true of the system, and then ask the model checker to confirm that it holds in every possible state. In this case, our invariant states that the DNS should never be deleted once a newer plan has been applied. (With more information about the real system, we could simplify or refine this rule further.)
+How do we discover the race condition? The idea is this: we express as an invariant what must always be true of the system, and then ask the model checker to confirm that it holds in every possible state. In this case, we can set up an invariant stating that the DNS should never be deleted once a newer plan has been applied. (With more information about the real system, we could simplify or refine this rule further.)
 
 We specify this invariant formally as follows:
 
 
-```
+```promela
 /*
 
 A quick note on some of the keywords used in the invariant below:
@@ -117,10 +117,10 @@ ltl no_dns_deletion_on_regression {
 
 ```
 
-A model checker explores all reachable states of the model and checks that the invariant holds in each. If it finds a violation, it produces a counterexample as a trail file. 
+How does a model checker use an invariant to check correctness? It starts from the initial state and systematically applies every possible transition, exploring all interleavings to build the set of reachable states [2]. It then checks that the invariant holds in each one. If it finds a violation, it records a counterexample in a trail file.
 
 When we run the model with this invariant in the model checker, it reports a violation. Spin reports one error and writes a trail file that shows, step by step, how the system reached the bad state.
-```
+```bash
 
 $ spin -a aws-dns-race.pml
 $ gcc -O2 -o pan pan.c                                                       
@@ -138,14 +138,14 @@ State-vector 64 byte, depth reached 285, errors: 1
 
 ```
 
-The trail file shows how the race happens. Two Enactors run at the same time: one applies plan 4 and starts cleaning up, while the other falls behind and applies plan 3. Because cleanup only deletes plans much older than the one just applied, Enactor 2 deletes 1 and 2 but skips 3. Later, the slower Enactor makes plan 3 active, and when the faster Enactor 2 resumes cleanup, it deletes 3 and the DNS disappears.
+The trail file, which you can find in the repository linked below, shows how the race happens. The trail file shows that two Enactors operate side by side: one applies plan 4 and starts cleaning up, while the other falls behind and applies plan 3. Because cleanup only deletes plans much older than the one just applied, Enactor 2 deletes 1 and 2 but skips 3. Later, the slower Enactor makes plan 3 active, and when the faster Enactor 2 resumes cleanup, it deletes 3 and the DNS disappears.
 
 Here’s an illustration of the interleaving reconstructed from the trail:
 
-<img loading="lazy" src="{{ site.baseurl }}/images/2025-10-26-aws-outage-race-conditions/race-condition-spin-inteleaving.jpg" alt="aws dns race condition simulated by spin" />
+<img loading="lazy" src="{{ site.baseurl }}/images/2025-10-30-aws-outage-race-conditions/race-condition-spin-inteleaving.png" alt="aws dns race condition simulated by spin" />
 
 Before publishing, I reread the incident report and noted: “Additionally, because the active plan was deleted, the system was left in an inconsistent state…”. This suggests a direct invariant: the active plan must never be deleted.
-```
+```promela
 ltl never_delete_active {
     [] ( current_plan > 0 -> !plan_deleted[current_plan] )
 }
@@ -155,14 +155,15 @@ Running the model checker with this invariant produces essentially the same coun
 
 Invariants are invaluable for establishing correctness. If we can show that an invariant holds in the initial state, in every state reachable from it, and in the final state as well, we gain confidence that the system’s logic is sound.
 
-To fix the code, we execute the problematic statements atomically. You can find both versions of the code, the one with the race and the fixed one, along with the interleaving trail in the accompanying repository [2]. I’ve included detailed comments to make it self-explanatory, as well as instructions on how to run the model and explore the trail.
+To fix the code, we execute the problematic statements atomically. You can find both versions of the code, the one with the race and the fixed one, along with the interleaving trail in the accompanying repository [3]. I’ve included detailed comments to make it self-explanatory, as well as instructions on how to run the model and explore the trail.
 
-Some of the assumptions in this model are necessarily simplified, since I don’t have access to AWS’s internal design details. Without that context, there will naturally be gaps between this abstraction and the real system. This model was created in a short time frame purely for experimental purposes. With more time and context, one could certainly build a more accurate and refined version. 
+Some of the assumptions in this model are necessarily simplified, since I don’t have access to AWS’s internal design details. Without that context, there will naturally be gaps between this abstraction and the real system. This model was created in a short time frame for experimental purposes. With more time and context, one could certainly build a more accurate and refined version. 
 
 _Please keep in mind that I’m only human, and there’s a chance this post contains errors. If you notice anything off, I’d appreciate a correction. Please feel free to [send me an email](mailto:waqas.younas@gmail.com)._
 
 ## References
 
 1. [AWS Post-Incident Summary — October 2025 Outage](https://aws.amazon.com/message/101925/)
-2. [Source code repository](https://github.com/wyounas/aws-dns-outage-oct-2025-modeling/)
-3. [Spin model checker](https://spinroot.com/)
+2. [How concurrency works: A visual guide](https://wyounas.github.io/concurrency/2024/12/12/how-concurrency-works-a-visual-guide/)
+3. [Source code repository](https://github.com/wyounas/aws-dns-outage-oct-2025-modeling/)
+4. [Spin model checker](https://spinroot.com/)
