@@ -26,11 +26,15 @@ Using the details from the incident report, we could sketch an interleaving that
 <img loading="lazy" src="{{ site.baseurl }}/images/2025-10-30-aws-outage-race-conditions/race-condition-interleaving.png" alt="aws dns race condition"  />
 
 
-Let's try to uncover this interleaving using a model checker. We’ll create a DNS Planner process that produces plans, and DNS Enactor processes that pick them up. The Enactor will check whether the plan it’s about to apply is newer than the previous one, update the state of certain variables to simulate changes in Route 53, and finally clean up the older plans.
+Let's try to uncover this interleaving using a model checker. 
+
+In Promela, you can model each part of the system as its own process. Spin then takes those processes, starts from the initial state, and systematically applies every possible transition, exploring all interleavings to build the set of reachable states [2]. It checks that your invariants hold in each one, and if it finds a violation, it reports a counterexample.
+
+We’ll create a DNS Planner process that produces plans, and DNS Enactor processes that pick them up. The Enactor will check whether the plan it’s about to apply is newer than the previous one, update the state of certain variables to simulate changes in Route 53, and finally clean up the older plans.
 
 In our simplified model, we’ll run one DNS Planner process and two DNS Enactor processes. (AWS appears to run three across zones; we abstract that detail here.) The Planner generates plans, and through Promela channels, these plans are sent to the Enactors for processing.
 
-Inside each DNS Enactor, we track the key aspects of system state. The Enactor keeps the current plan in _current_plan_, and it represents DNS health using _dns_valid_. It also records the highest plan applied so far in _highest_plan_applied_. The incident report also notes that the clean-up process deletes plans that are “significantly older than the one it just applied.” In our model, we capture this by allowing an Enactor to remove only those plans that are much older than its current plan. To simulate the deletion of an active plan, the Enactor’s clean-up process checks whether _current_plan_ equals the plan being deleted. If it does, we simulate DNS deletion by setting _dns_valid_ to false.
+Inside each DNS Enactor, we track the key aspects of system state. The Enactor keeps the current plan in _current_plan_, and it represents DNS health using _dns_valid_. It also records the highest plan applied so far in _highest_plan_applied_. The incident report also notes that the clean-up process deletes plans that are “significantly older than the one it just applied.” In our model, we capture this by allowing an Enactor to remove only those plans that are much older than its current plan. To simulate the deletion of an active plan, the Enactor’s clean-up process checks whether _current_plan_ equals the plan being deleted. If it does, we simulate the resulting DNS failure by setting _dns_valid_ to false.
 
 Here’s the code for the DNS Planner:
 
@@ -117,7 +121,7 @@ ltl no_dns_deletion_on_regression {
 
 ```
 
-How does a model checker use an invariant to check correctness? It starts from the initial state and systematically applies every possible transition, exploring all interleavings to build the set of reachable states [2]. It then checks that the invariant holds in each one. If it finds a violation, it records a counterexample in a trail file.
+When we start the model checker, one DNS Planner process begins generating plans and sending them through channels to the DNS Enactors. Two Enactors receive these plans, perform their checks, apply updates, and run their cleanup routines. As these processes interleave, the model checker systematically builds the set of reachable states, allowing the invariant to be checked in each one.
 
 When we run the model with this invariant in the model checker, it reports a violation. Spin reports one error and writes a trail file that shows, step by step, how the system reached the bad state.
 ```bash
