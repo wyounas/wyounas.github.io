@@ -32,7 +32,7 @@ In Promela, you can model each part of the system as its own process. Spin then 
 
 We’ll create a DNS Planner process that produces plans, and DNS Enactor processes that pick them up. The Enactor will check whether the plan it’s about to apply is newer than the previous one, update the state of certain variables to simulate changes in Route 53, and finally clean up the older plans.
 
-In our simplified model, we’ll run one DNS Planner process and two DNS Enactor processes. (AWS appears to run three across zones; we abstract that detail here.) The Planner generates plans, and through Promela channels, these plans are sent to the Enactors for processing.
+In our simplified model, we’ll run one DNS Planner process and two concurrent DNS Enactor processes. (AWS appears to run three across zones; we abstract that detail here.) The Planner generates plans, and through Promela channels, these plans are sent to the Enactors for processing.
 
 Inside each DNS Enactor, we track the key aspects of system state. The Enactor keeps the current plan in _current_plan_, and it represents DNS health using _dns_valid_. It also records the highest plan applied so far in _highest_plan_applied_. The incident report also notes that the clean-up process deletes plans that are “significantly older than the one it just applied.” In our model, we capture this by allowing an Enactor to remove only those plans that are much older than its current plan. To simulate the deletion of an active plan, the Enactor’s clean-up process checks whether _current_plan_ equals the plan being deleted. If it does, we simulate the resulting DNS failure by setting _dns_valid_ to false.
 
@@ -57,7 +57,7 @@ active proctype Planner() {
 
 It creates plans and sends them over a channel (_plan_ is being sent to the channel _plan_channel_) to be picked up later by the DNS Enactor.
 
-We start two DNS Enactor processes by specifying the number of enactors after the _active_ keyword.
+We start two concurrent DNS Enactor processes by specifying the number of enactors after the _active_ keyword.
 
 ```promela
 active [NUM_ENACTORS] proctype Enactor() 
@@ -142,7 +142,7 @@ State-vector 64 byte, depth reached 285, errors: 1
 
 ```
 
-The trail file in the repository below shows how the race happens. The trail file shows that two Enactors operate side by side: the faster one applies plan 4 and starts cleaning up. Because cleanup only removes plans much older than the one just applied, it deletes 1 and 2 but skips 3. The slower Enactor then applies 3 and makes it active, and when the faster Enactor picks up cleanup again, it deletes 3 and the DNS goes down.
+The trail file in the repository below shows how the race happens. The trail file shows that two Enactors operate side by side: the faster one applies plan 4 and starts cleaning up. Because cleanup only removes plans much older than the one just applied, it deletes 1 and 2 but skips 3. The slower Enactor then applies plan 3 and makes it active, and when the faster Enactor picks up cleanup again, it deletes 3 and the DNS goes down.
 
 Here’s an illustration of the interleaving reconstructed from the trail:
 
