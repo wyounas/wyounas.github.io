@@ -63,7 +63,7 @@ We start two DNS Enactor processes by specifying the number of enactors after th
 active [NUM_ENACTORS] proctype Enactor() 
 ```
 
-The DNS Enactor waits for plans and receives them (? indicates receiving from a channel). It then performs a staleness check, updates the state of certain variables to simulate changes in Route 53, and finally cleans up the older plans.
+The DNS Enactor waits for plans and receives them (? opertaor receives a plan from the channel _plan_channel_). It then performs a staleness check, updates the state of certain variables to simulate changes in Route 53, and finally cleans up the older plans.
 
 ```promela
 :: plan_channel ? my_plan ->
@@ -142,7 +142,7 @@ State-vector 64 byte, depth reached 285, errors: 1
 
 ```
 
-The trail file, which you can find in the repository linked below, shows how the race happens. The trail file shows that two Enactors operate side by side: one applies plan 4 and starts cleaning up, while the other falls behind and applies plan 3. Because cleanup only deletes plans much older than the one just applied, Enactor 2 deletes 1 and 2 but skips 3. Later, the slower Enactor makes plan 3 active, and when the faster Enactor 2 resumes cleanup, it deletes 3 and the DNS disappears.
+The trail file in the repository below shows how the race happens. The trail file shows that two Enactors operate side by side: the faster one applies plan 4 and starts cleaning up. Because cleanup only removes plans much older than the one just applied, it deletes 1 and 2 but skips 3. The slower Enactor then applies 3 and makes it active, and when the faster Enactor picks up cleanup again, it deletes 3 and the DNS goes down.
 
 Here’s an illustration of the interleaving reconstructed from the trail:
 
