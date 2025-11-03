@@ -9,7 +9,7 @@ AWS published a post-mortem about a recent outage [1]. Big systems like theirs a
 
 The post-mortem mentioned a race condition, which caught my eye. I don’t know all the details of AWS’s internal setup, but using the information in the post-mortem and a few assumptions, we can try to reproduce a simplified version of the problem. 
 
-As a small experiment, we’ll use a model checker to see how such a race could happen. Formal verification can’t prevent every failure, but it helps us think more clearly about correctness and reason about subtle concurrency bugs. For this, we’ll use the Spin model checker, which uses the Promela language.
+As a small experiment, we’ll use a model checker to see how such a race could happen. Formal verification can’t prevent every failure, but it helps us think more clearly about correctness and reason about subtle concurrency bugs. Of course, writing about it after the incident benefits from hindsight, we already know what went wrong. For this experiment, we’ll use the Spin model checker, which uses the Promela language.
 
 There’s a lot of detail in the post-mortem, but for simplicity we’ll focus only on the race-condition aspect. The incident was triggered by a defect in DynamoDB’s automated DNS management system. The components of this system involved in the incident were the DNS Planner, DNS Enactor, and Amazon Route 53 service.
 
