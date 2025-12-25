@@ -5,7 +5,7 @@ date: 2025-12-23
 categories:  [puzzles, concurrency]
 ---
 
-I came across the Santa Claus puzzle [^1], which is stated as follows:
+I came across the Santa Claus concurrency puzzle [^1], which is stated as follows:
 
 > Santa Claus sleeps at the North Pole until awakened by either all of the nine reindeer or by a group of three out of ten elves: He performs one of two indivisible actions:
 > 
@@ -16,7 +16,7 @@ I came across the Santa Claus puzzle [^1], which is stated as follows:
 
 The puzzle captures synchronization challenges that arise whenever multiple processes must coordinate. Rather than just solving it, I wanted to validate the solution’s correctness using a model checker. To do this, I use SPIN and Promela, SPIN’s specification language. 
 
-A natural question is why use a model checker instead of simply writing the solution in Python or Go. The difference is coverage. A model checker explores all possible interleavings of concurrent execution, not just the ones exercised by tests or experiments. A program can appear correct in many runs and still fail under an untested schedule; a model checker either proves correctness for all executions or produces a concrete counterexample. 
+A natural question is why use a model checker instead of simply writing the solution in Python or Go. The difference is coverage. A model checker explores all possible interleavings of concurrent execution, not just the ones exercised by tests or experiments. A program can appear correct in many runs and still fail under an untested schedule; a model checker either proves correctness for all executions or produces a concrete counterexample. Once we have such a model, we can then translate it into a conventional programming language with much greater confidence.
 
 <img loading="lazy" src="{{ site.baseurl }}/images/2025-12-23-how-to-help-santa-concurrently/first.png" alt="Santa claus puzzle" />
 
