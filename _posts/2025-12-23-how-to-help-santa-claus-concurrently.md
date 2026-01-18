@@ -42,9 +42,7 @@ Let's now consider three failure scenarios.
 - Under a subtle interleaving, Santa may do the seemingly impossible, delivering toys with the reindeer while consulting with the elves at the same time.
 - Santa may consult with elves even when a full group of nine reindeer is already waiting. 
 
-We will model each of these subtle failures next, and then work toward a solution that satisfies all three constraints.
-
-But before we talk about these three failure scenarios, let's quickly look at Promela concepts: channels, options, and guards. 
+We’ll look at each of these failure scenarios next, and then work toward a solution that satisfies all puzzle constraints. Before that, let’s briefly introduce the Promela concepts we’ll need: channels, options, and guards.
 
 To communicate between processes, we use channels in Promela. A channel is a data type that supports two operations: send and receive. Channels transfer messages of a specified type from a sender to a receiver.
 
@@ -90,7 +88,7 @@ When the _if_ statement is reached:
 
 Now let's look at the first failure scenario in which Santa may deliver toys without all nine reindeer being ready. In the failure models I sometimes shrink the number of elves (e.g., to 3) to keep the state space small; the failure mechanism is the same.  
 
-Here is a code excerpt from this faulty model:
+Here is a code excerpt from the model that simulates the first failure scenario:
 
 ```
 #define NUM_REINDEER 9
@@ -153,11 +151,11 @@ ltl safety { [] (delivering -> actually_harnessed == NUM_REINDEER) }
 
 This Promela model is a small “executable spec” of the Santa problem. The full model and instructions for running it are available in the repository [^2]. To keep things simple, I mainly discuss the Santa–reindeer interaction; elves are present only to keep the overall structure similar.
 
-The syntax _active [N] proctype P(){...}_ tells SPIN to start N concurrent copies of process P in the initial state, so here you get 9 Reindeer processes, 3 Elves processes, and 1 Santa process. Each reindeer loops by rendezvous-sending on the _r_arrive_ channel, so it blocks until Santa receives, then waits for a harness signal on _harnessed_. Santa loops, counting reindeer arrivals. Once all nine reindeer have arrived, he “harnesses” them by sending nine tokens on _harnessed_ and then briefly sets _delivering = true_ to represent toy delivery. 
+The syntax _active [N] proctype P(){...}_ tells SPIN to start N concurrent copies of process P in the initial state, so here you get 9 Reindeer processes, 3 Elves processes, and 1 Santa process. Each reindeer loops by rendezvous-sending on the _r_arrive_ channel, so it blocks until Santa receives, then waits for a harness message on _harnessed_. Santa loops, counting reindeer arrivals. Once all nine reindeer have arrived, he “harnesses” them by sending nine messages on _harnessed_ and then briefly sets _delivering = true_ to represent toy delivery. 
 
 <img loading="lazy" src="{{ site.baseurl }}/images/2025-12-23-how-to-help-santa-concurrently/two_one.png" alt="Santa claus first buggy sequence" />
 
-The bug is that _harnessed_ is a buffered channel, so Santa can enqueue all nine harness tokens and immediately proceed; nothing forces the reindeer to have actually received them yet. That violates the puzzle constraint that Santa must deliver with the whole group participating together. To check whether this implementation respects the puzzle’s constraints, we write correctness properties in Linear Temporal Logic (LTL). 
+The bug is that _harnessed_ is a buffered channel, so Santa can enqueue all nine harness messages and immediately proceed; nothing forces the reindeer to have actually received them yet. That violates the puzzle constraint that Santa must deliver with the whole group participating together. To check whether this implementation respects the puzzle’s constraints, we write correctness properties in Linear Temporal Logic (LTL). 
 
 In simple terms, an LTL property describes a rule that must hold over time as the system runs. The model checker constructs the system’s state space by enumerating all reachable states, each state being a snapshot of all variables and the current position of each process in its code, under all possible interleavings. You can think of this state space as a graph: each node is a state, and each edge represents a single step the program can take as processes interleave. An LTL property is then checked against this entire state space: when we say a condition must “always” hold, we mean it must be true in every reachable state that SPIN explores.
 
@@ -187,7 +185,6 @@ active proctype SantaConsulting()
         e_arrive ? 1;
         e++;
     :: (e == NUM_ELVES) ->
-        /* bug: no priority check; consulting may proceed even if reindeer are ready */
 
         consulting = true;
         
@@ -227,7 +224,7 @@ In this version, Santa’s consultation logic does not check whether a full rein
 
 <img loading="lazy" src="{{ site.baseurl }}/images/2025-12-23-how-to-help-santa-concurrently/two_three.png" alt="Santa claus third buggy sequence" />
 
-I found it tricky to detect this using only the tools discussed so far, and then discovered a precedence property expressed in LTL. Informally, the property states: once a full group of nine reindeer is ready, consulting must not occur before delivery begins. We encode this using the LTL 'until' operator (written as 'U'), which lets us state that consulting must remain false until delivery occurs. When SPIN checks this property, it finds a counterexample execution in which Santa consults first, demonstrating that the implementation violates the required precedence rule.
+I found it tricky to detect this using only the tools discussed so far, and then discovered a precedence property expressed in LTL. Informally, the property states: once a full group of nine reindeer is ready, consulting must not occur before delivery begins. We encode this using the LTL 'until' operator (written as 'U'), which lets us state that consulting must remain false until delivery occurs. When SPIN checks this property, it finds a counterexample in which Santa consults first, demonstrating that the implementation violates the required precedence rule.
 
 
 There’s one more rule that all of the models above break: Santa must not do the marshalling himself. In the above models, Santa is directly counting arrivals and releasing reindeer and elves, which makes it easy to mix up group formation with the work itself.
@@ -246,7 +243,7 @@ We model the system using the following processes:
 
 _Reindeer_: We run nine reindeer processes concurrently. Each reindeer arrives at the reindeer room and waits there until it is released.
 
-_Elves_: We run ten elf processes concurrently. Each elf arrives at the elf room and waits there until it is released.
+_Elves_: We also run ten elf processes concurrently. Each elf arrives at the elf room and waits there until it is released.
 
 _Reindeer room_: We run a single instance of this process, which simulates the reindeer room. It collects arriving reindeer, signals Santa when a full group of nine has formed, and releases the group after Santa completes delivery.
 
@@ -267,13 +264,12 @@ chan e_done    = [0] of { bit };
 ```
 We append an _r_ to channel names that transfer data for reindeer, and an _e_ to those for elves. Below are the roles of the main channels:
 
-- _r_arrive / e_arrive_: These rendezvous channels represent how reindeer and elves enter their respective rooms. For example, a reindeer enters the reindeer room by communicating with the reindeer room process over _r_arrive_. When a reindeer or an elf attempts to enter, it blocks until the room is ready to accept it. If the room is full, it simply stops accepting arrivals, and new arrivals wait.
+- _r_arrive / e_arrive_: These rendezvous channels represent how reindeer and elves enter their rooms. A reindeer tries to enter by sending on _r_arrive_; because the channel is rendezvous, it blocks until the room is ready to receive. When the room is full, it stops receiving arrivals, so additional reindeer (or elves) block until the room re-opens.
 
+- _r_release / e_release_: These channels represent how a room releases a complete group. After Santa finishes, the room sends on _r_release_ (or _e_release_) once per group member. Because the channel is rendezvous, the room cannot “release ahead”, each send synchronizes with an actual waiting reindeer (or elf).
 
-- _r_release / e_release_: These channels represent how a room releases a group. For example, after Santa finishes delivering toys, the reindeer room releases the reindeer by sending on _r_release_; each reindeer process synchronizes with the room on this channel to leave. Because _r_release_ is a rendezvous channel, the room cannot race ahead, it must wait for each reindeer to actually leave before proceeding.
+- _r_done / e_done_: These channels represent Santa’s “I’m finished” notification to the room. The room waits for this signal before releasing anyone. For example, after Santa finishes delivering toys, he sends on _r_done_; without it, the room would not know when it is safe to release the reindeer.
 
-
-- _r_done / e_done_: These channels represent how Santa signals “I have completed the task.” The room waits for this signal before releasing anyone. For example, after Santa finishes delivering toys, he signals the reindeer room by sending on _r_done_. Without this signal, the room would have no way to know when Santa is done.
 
 Now let’s look at the reindeer and elf processes, which are quite similar. We’ll start with the reindeer process:
 
@@ -406,7 +402,7 @@ Finally, we specify a mutual-exclusion property to ensure that Santa never deliv
 ltl mutex_santa { [] !(delivering && consulting) }
 ```
 
-You might ask why delivering and consulting are true only briefly. Delivery and consultation are abstracted to single steps; the boolean flags exist to state and check properties.
+You might wonder why the variables delivering and consulting are set to true only briefly. In this model, delivery and consultation are not simulated in detail, they are represented as single abstract steps. The boolean flags simply mark the moment when Santa starts a delivery or consultation, so that we can state and check correctness properties. Their purpose is not to model time passing, but to make illegal overlaps visible to the model checker.
 
 Now let’s turn to the liveness property. Liveness properties state that something good eventually happens. The liveness property we specify is: always, if a request is pending, then eventually Santa will either be delivering toys or consulting with elves. This rules out executions where requests remain pending forever without Santa ever doing work.
 
@@ -416,7 +412,7 @@ We specify this property as follows (where [] denotes “always” and <> denote
 ltl live_progress { [] ((r_request || e_request) -> <> (delivering || consulting)) }
 ```
 
-One important role of a liveness property is to avoid vacuous correctness. For example, a safety property such as _[] (delivering -> reindeer_waiting == 9)_ can hold even if delivering is never true. In contrast, this liveness property rules out executions where a request remains pending forever without Santa ever entering a delivery or consultation step, in other words, it checks that the system makes progress once a request is pending.
+One important role of a liveness property is to avoid vacuous correctness. For example, a safety property such as _[] (delivering -> reindeer_waiting == 9)_ can hold even if _delivering_ is never true. In contrast, this liveness property rules out executions where a request remains pending forever without Santa ever taking a delivery or consultation step—in other words, it checks that some service step eventually occurs whenever a request is pending.
 
 When we run the model in SPIN, all safety and liveness properties pass. In separate runs, SPIN explored about 5 million states while checking _safety_delivery_ and _mutex_santa_, and about 7 million states while checking the liveness property and found no counterexamples. In a similar fashion, we can also specify and check the precedence property.
 
