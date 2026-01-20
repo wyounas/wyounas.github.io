@@ -97,7 +97,8 @@ Here is a code excerpt from the model that simulates the first failure scenario:
 // buffered channels
 chan harnessed = [NUM_REINDEER] of { bit };
 chan done_consulting = [NUM_ELVES] of { bit };
-...
+
+// Some code omitted for brevity
 
 active [NUM_REINDEER] proctype Reindeer()
 {
@@ -139,9 +140,8 @@ active proctype Santa()
         delivering = false;
         reindeer_ready = false;
         i = 0;
-    ...
-    ...
-    ...
+    
+    // Some code omitted for brevity - complete code linked below
 }
 
 // Correctness property 
