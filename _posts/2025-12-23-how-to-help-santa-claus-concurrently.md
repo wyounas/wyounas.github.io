@@ -161,7 +161,7 @@ In simple terms, an LTL property describes a rule that must hold over time as th
 
 The LTL property _ltl safety { [] (delivering -> actually_harnessed == NUM_REINDEER) }_ encodes that requirement. Here [] means “always,” so the property states that in every reachable state, if delivering is true, then all nine reindeer must already be harnessed.
 
-When SPIN checks this property, it finds an execution in which Santa sets _delivering = true_ before all nine reindeer have received their harness signals. In other words, Santa starts delivering toys while some reindeer are still unharnessed. The property fails, and SPIN produces a concrete trace showing exactly how this execution occurs. The code shows this model, along with instructions for running it and viewing the trace.
+When SPIN checks this property, it finds an execution in which Santa sets _delivering = true_ before all nine reindeer have received their harness signals. In other words, Santa starts delivering toys while some reindeer are still unharnessed. The property fails, and SPIN produces a counterexample showing exactly how this execution occurs. The code shows this model, along with instructions for running it and viewing the trace that contains the counterexample.
 
 Now let’s look at a second failure scenario, in which Santa may end up doing the seemingly impossible, delivering toys with the reindeer and consulting with the elves at the same time. The complete model that simulates this fault is available here [^3]; an excerpt is shown below.
 
@@ -215,6 +215,12 @@ active proctype SantaToyDelivery()
         
     
     od
+}
+
+// correctness property
+
+ltl reindeer_precedence {
+    [] ( (r_count == NUM_REINDEER) -> ( (!consulting) U delivering ) )
 }
 ```
 
