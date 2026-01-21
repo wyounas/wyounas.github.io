@@ -38,9 +38,9 @@ At first, the problem seems straightforward. You wait until nine reindeer arrive
 
 Let's now consider three failure scenarios. 
 
-- Santa may deliver toys without all nine reindeer being ready.
-- Under a subtle interleaving, Santa may do the seemingly impossible, delivering toys with the reindeer while consulting with the elves at the same time.
-- Santa may consult with elves even when a full group of nine reindeer is already waiting. 
+- Santa delivers toys even though fewer than nine reindeer are actually ready.
+- Under a subtle interleaving, Santa ends up doing something impossible in the real world: delivering toys _and_ consulting with elves at the same time.
+- Santa chooses to consult with elves even though nine reindeer are already waiting and ready to go.
 
 We’ll look at each of these failure scenarios next, and then work toward a solution that satisfies all puzzle constraints. Before that, let’s briefly introduce the Promela concepts we’ll need: channels, options, and guards.
 
@@ -418,7 +418,7 @@ We specify this property as follows (where [] denotes “always” and <> denote
 ltl live_progress { [] ((r_request || e_request) -> <> (delivering || consulting)) }
 ```
 
-One important role of a liveness property is to avoid vacuous correctness. For example, a safety property such as _[] (delivering -> reindeer_waiting == 9)_ can hold even if _delivering_ is never true. In contrast, this liveness property rules out executions where a request remains pending forever without Santa ever taking a delivery or consultation step—in other words, it checks that some service step eventually occurs whenever a request is pending.
+One important role of a liveness property is to avoid vacuous correctness. For example, a safety property such as _[] (delivering -> reindeer_waiting == 9)_ can hold even if _delivering_ is never true ('->' is an implication, and in logic an implication “A implies B” is considered true whenever A is false, regardless of whether B is true or false.). In contrast, this liveness property rules out executions where a request remains pending forever without Santa ever taking a delivery or consultation step, in other words, it checks that some service step eventually occurs whenever a request is pending.
 
 When we run the model in SPIN, all safety and liveness properties pass. In separate runs, SPIN explored about 5 million states while checking _safety_delivery_ and _mutex_santa_, and about 7 million states while checking the liveness property and found no counterexamples. In a similar fashion, we can also specify and check the precedence property.
 
