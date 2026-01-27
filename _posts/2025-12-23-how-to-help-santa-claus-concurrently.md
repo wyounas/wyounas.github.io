@@ -36,7 +36,7 @@ Let's look at three key puzzle constraints:
 
 At first, the problem seems straightforward. You wait until nine reindeer arrive or three elves arrive, wake Santa, do the work, and repeat. It is tempting to think that a few counters or locks are enough to solve it. The difficulty is in the interleavings. A solution that appears correct when reasoning step by step can fail when operations interleave in unexpected ways.
 
-Let's now consider three failure scenarios. 
+Let’s now consider three failure scenarios that solve the puzzle incorrectly.
 
 - Santa delivers toys even though fewer than nine reindeer are actually ready.
 - Under a subtle interleaving, Santa ends up doing something impossible in the real world: delivering toys _and_ consulting with elves at the same time.
@@ -344,7 +344,7 @@ active proctype RoomReindeer()
 
 The repetition structure has two alternatives. When _waiting_ is less than _NUM_REINDEER_, the room accepts arriving reindeer and increments the counter. If the arrival completes the group, the room sets _r_request = 1_ to notify Santa. 
 
-When _waiting_ equals _NUM_REINDEER_, the room stops accepting arrivals and waits for Santa to signal completion on _r_done_. After receiving this signal, the room releases the reindeer via _r_release_ and resets its state to accept new arrivals.
+When _waiting_ equals _NUM_REINDEER_, the room stops accepting arrivals and waits for Santa to message completion on _r_done_. After receiving this message, the room releases the reindeer via _r_release_ and resets its state to accept new arrivals.
 
 The logic for the elf room follows the same pattern and is omitted here for brevity.
 
