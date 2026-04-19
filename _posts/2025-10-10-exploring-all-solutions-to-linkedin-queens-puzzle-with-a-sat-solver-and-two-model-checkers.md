@@ -32,6 +32,10 @@ To get started with PyEDA, we represent the 4×4 grid as a two‑dimensional arr
 X = exprvars('x', 4, 4)
 ```
 
+We let `X[r, c]` mean: there is a queen in cell `(r, c)`. The solver’s task is then to decide which of these variables should be true and which should be false so that all the puzzle rules hold.
+
+To see the idea on a much smaller board, suppose we create an array of two variables with `X = exprvars('x', 2)`, where `X[0]` means “put a queen in the first cell” and `X[1]` means “put a queen in the second cell.” If we write `OneHot(X[0], X[1])`, we are saying that exactly one of those two cells must contain a queen. PyEDA then searches for ways of setting these two variables to `True` and `False` so that the rule holds, and in this case there are exactly two such solutions: `{X[0]: 1, X[1]: 0}` and `{X[0]: 0, X[1]: 1}`. It does not return `{X[0]: 1, X[1]: 1}` or `{X[0]: 0, X[1]: 0}`, because those do not satisfy the rule.
+
 To represent colored regions, we assign each region a number. For example, cells marked with 1 belong to the red region, 2 to green, 3 to yellow, and 4 to pink.
 
 Consider the following layout of four regions in a `4×4` grid, where each row is assigned a distinct color:
@@ -51,26 +55,28 @@ regions = {
         4: [(3, 0), (3, 1), (3, 2), (3, 3)]   # Region 4: row 3
     }
 ```
-   
-Next, we encode the constraints that reflect the rules of the puzzle. 
 
-The first constraint ensures that each row contains exactly one queen. To add the constraint, we make use of the OneHot() function in PyEDA which enforces that exactly one variable in the list is true. Here’s how we express this constraint for each row:
+In this small example, each region happens to be a whole row, so the region rule does not add anything new here. I am keeping it anyway because it shows how we encode regions. A little later, when we move to the model checkers, we will solve a puzzle with irregular regions where this rule really matters.
+   
+Next, we encode the rules of the puzzle as Boolean constraints. If the solver finds true and false values for the variables that make all of these constraints true at once, then we have a valid board.
+
+The first constraint says that each row contains exactly one queen. In plain terms, that means one cell in the row must be chosen, and the others must not be. PyEDA’s `OneHot()` gives us exactly that. Here’s how we express this constraint for each row:
 ```python
 for r in range(n):
     row_vars = [X[r,c] for c in range(n)]
     constraints.append(OneHot(*row_vars))
 ```
 
-In the same manner, we add a constraint to ensure that each column contains exactly one queen, satisfying another rule of the puzzle:
+We do the same for columns:
 ```python
 for c in range(n):
     col_vars = [X[r,c] for r in range(n)]
     constraints.append(OneHot(*col_vars))
 ```
 
-Similarly, for each colored region we also use `OneHot` to enforce one‑queen‑per‑region rule.
+And we do the same for each colored region.
 
-Finally, we need to add the constraint that enforces the adjacent diagonal rule. Because rows and columns already have exactly one queen, horizontal or vertical neighbors can’t happen. The only remaining local conflict is immediate diagonal adjacency. For example, a queen at (1, 1) forbids (0, 0), (0, 2), (2, 0), and (2, 2) as shown in the illustration below.
+Finally, we add the diagonal rule. This puzzle is a little different from the classic N-Queens puzzle: queens may lie on the same diagonal as long as they are not touching diagonally. Since each row and each column already gets exactly one queen, we do not need extra constraints for left-right or up-down neighbors here. The remaining local conflict is two queens on immediately adjacent diagonal cells. For example, a queen at (1, 1) forbids (0, 0), (0, 2), (2, 0), and (2, 2) as shown in the illustration below.
 
 ```
  X  .  X  . 
@@ -80,7 +86,9 @@ Finally, we need to add the constraint that enforces the adjacent diagonal rule.
 
 ```
 
-We only add constraints for each cell and its two lower diagonals (r+1, c±1). That way, every adjacent‑diagonal pair appears exactly once, when we visit its higher row. Adding the symmetric “upper” pairs would just duplicate constraints.
+To encode this, it is enough to look only one row down from each cell: `(r+1, c-1)` and `(r+1, c+1)`. That covers every touching diagonal pair once. Looking upward as well would only repeat the same restriction.
+
+A condition such as `~(a & b)` just says that `a` and `b` cannot both be true. Here, that means the two cells cannot both contain queens.
 
 Here is the code that implements this. It includes a few small optimizations: for example, we skip left-diagonal checks in column 0, since there are no cells to the left, and we stop at the second-to-last row, because all necessary diagonal pairs have already been covered.
 ```python
@@ -99,7 +107,7 @@ for r in range(n-1):  # Stop before last row
                 constraints.append(~(X[r,c] & X[r+1, c+1]))
 ```
 
-That’s pretty much all we need to do to get not just one, but all possible solutions to the puzzle. We combine all the constraints and call PyEDA’s `satisfy_all()` to enumerate every valid board.
+That’s pretty much all we need to do to get not just one, but all possible solutions to the puzzle. We combine all the constraints and call PyEDA’s `satisfy_all()`. It returns all choices of true and false values that make the full formula true, which here means all valid boards.
 
 Below are two valid solutions for the above board with specific regions. Here is the [complete code](https://github.com/wyounas/linkedin_queens/blob/main/queens.py) that generated these two solutions.
 
