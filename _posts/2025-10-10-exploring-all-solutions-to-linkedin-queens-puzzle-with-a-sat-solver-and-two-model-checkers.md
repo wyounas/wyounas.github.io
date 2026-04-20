@@ -25,20 +25,21 @@ All the code in this post is linked in relevant sections, and the repository con
 I first came across this puzzle in a nice [blog post](https://buttondown.com/hillelwayne/archive/solving-linkedin-queens-with-smt/) by Hillel Wayne, whose blog I enjoy reading, where he solved it using an SMT solver called Z3. 
 
 
-In the past, I had used a Python-based SAT solver called PyEDA [1], and I thought it would be interesting to use it to find all solutions to the LinkedIn Queens puzzle. Let’s solve it for a `4x4` grid though the code extends to `9x9` grid. The code uses Python 3.13.1 and PyEDA 0.29.0. 
+In the past, I had used a Python-based SAT solver called PyEDA [1], and I thought it would be interesting to use it to find all solutions to the LinkedIn Queens puzzle. Let’s solve it for a `4x4` grid though the code extends to `9x9` grid. The code uses Python 3.13.1 and PyEDA 0.29.0.
 
-To get started with PyEDA, we represent the 4×4 grid as a two‑dimensional array of Boolean variables:
+At a high level, PyEDA lets us describe a problem using Boolean variables and rules over those variables, and then searches for settings that satisfy all the rules.
+
+For example, suppose we create an array of two Boolean variables with `X = exprvars('x', 2)`. Here, for example, `X[0]` could mean “put a queen in the first cell” and `X[1]` could mean “put a queen in the second cell.” PyEDA’s `OneHot()` function says that exactly one variable in a group must be true, so `OneHot(X[0], X[1])` means exactly one of those two cells must contain a queen. When we ask PyEDA to search for settings that satisfy this rule, it returns only these two valid settings: `{X[0]: 1, X[1]: 0}` and `{X[0]: 0, X[1]: 1}`. It does not return `{X[0]: 1, X[1]: 1}` or `{X[0]: 0, X[1]: 0}` because those do not satisfy the rule.
+
+With that idea in mind, to solve the 4x4 LinkedIn Queens puzzle in PyEDA, we start by representing the board as a two-dimensional array of Boolean variables:
+
 ```python
 X = exprvars('x', 4, 4)
 ```
 
-We let `X[r, c]` mean: there is a queen in cell `(r, c)`. The solver’s task is then to decide which of these variables should be true and which should be false so that all the puzzle rules hold.
+We interpret `X[r, c]` to mean that cell `(r, c)` contains a queen. The solver then searches for True/False assignments to these variables that satisfy all the puzzle rules.
 
-To see the idea on a much smaller board, suppose we create an array of two variables with `X = exprvars('x', 2)`, where `X[0]` means “put a queen in the first cell” and `X[1]` means “put a queen in the second cell.” If we write `OneHot(X[0], X[1])`, we are saying that exactly one of those two cells must contain a queen. PyEDA then searches for ways of setting these two variables to `True` and `False` so that the rule holds, and in this case there are exactly two such solutions: `{X[0]: 1, X[1]: 0}` and `{X[0]: 0, X[1]: 1}`. It does not return `{X[0]: 1, X[1]: 1}` or `{X[0]: 0, X[1]: 0}`, because those do not satisfy the rule.
-
-To represent colored regions, we assign each region a number. For example, cells marked with 1 belong to the red region, 2 to green, 3 to yellow, and 4 to pink.
-
-Consider the following layout of four regions in a `4×4` grid, where each row is assigned a distinct color:
+To represent colored regions, we assign each region a number. For example, cells marked with 1 belong to the red region, 2 to green, 3 to yellow, and 4 to pink. Consider the following layout of four regions in a `4×4` grid, where each row is assigned a distinct color:
 ```
 1 1 1 1
 2 2 2 2
@@ -56,7 +57,7 @@ regions = {
     }
 ```
 
-In this small example, each region happens to be a whole row, so the region rule does not add anything new here. I am keeping it anyway because it shows how we encode regions. A little later, when we move to the model checkers, we will solve a puzzle with irregular regions where this rule really matters.
+In this small example, each region happens to be a whole row, so the region rule does not add anything new here. We are keeping it anyway because it shows how we encode regions. A little later, when we move to the model checkers, we will solve a puzzle with irregular regions where this rule really matters.
    
 Next, we encode the rules of the puzzle as Boolean constraints. If the solver finds true and false values for the variables that make all of these constraints true at once, then we have a valid board.
 
@@ -88,9 +89,6 @@ Finally, we add the diagonal rule. This puzzle is a little different from the cl
 
 To encode this, it is enough to look only one row down from each cell: `(r+1, c-1)` and `(r+1, c+1)`. That covers every touching diagonal pair once. Looking upward as well would only repeat the same restriction.
 
-A condition such as `~(a & b)` just says that `a` and `b` cannot both be true. Here, that means the two cells cannot both contain queens.
-
-Here is the code that implements this. It includes a few small optimizations: for example, we skip left-diagonal checks in column 0, since there are no cells to the left, and we stop at the second-to-last row, because all necessary diagonal pairs have already been covered.
 ```python
 for r in range(n-1):  # Stop before last row
         for c in range(n):
@@ -98,7 +96,8 @@ for r in range(n-1):  # Stop before last row
             if c > 0:
                 # A constraint like ~(X[1,1] & X[2,0]) means you can't have 
                 # queens at both (1,1) and (2,0) because ~(a & b) implies both
-                # 'a' and 'b' can't be both true at the same time. 
+                # 'a' and 'b' can't be both true at the same time. That means,
+                # the two cells cannot both contain queens.
                 constraints.append(~(X[r,c] & X[r+1, c-1]))
             # Below-right diagonal
             if c < n-1:
@@ -169,9 +168,9 @@ _Figure 1_
 
 The numbers inside the circles represent line numbers. As you can see, there is not just one computation path from start to finish, there are five possible computations, depending on which value is assigned to _`x`_.
 
-At the end of the above program, we have an assert that checks whether `x == 1`. Will this assertion pass? It will fail, because Spin finds a counterexample. 
+At the end of the above program, we have an assert that checks whether `x == 1`. Will this assertion pass? It will fail. Spin can reach that assertion in executions where _`x`_ is not 1, and when that happens, it reports a counterexample and writes an error trail.
 
-How does it find a counterexample? The assert causes the model checker to backtrack and explore all possible counterexamples from all computations. It tries to find computations where _`x`_ is not set to 1. For example, from five computations shown in the above figure, it will find paths where _`x`_ is set to 3, 4, or 5—but not 2, because that choice was blocked earlier using the guard expression.
+Spin explores the reachable executions induced by the nondeterministic choices in the model. An _`assert`_ statement is always executable, and Spin checks its condition whenever execution reaches it. If the condition is false, Spin reports that execution as an error trail. In this example, this happens when _`x`_ is set to 3, 4, or 5. It does not happen when _`x`_ is 2, because that branch blocks earlier at _`!(x == 2)`_ and never reaches the assertion.
 
 Here’s a truncated version of the assertion violation report you would see when you run your model (assuming the above code is saved in a file named _atest.pml_):
 
@@ -183,8 +182,8 @@ pan:1: assertion violated (x==1) (at depth 1)
 pan: wrote atest.pml.trail
 ```
 
-The `-E` switch tells the verifier to ignore computations that end in invalid status which could be caused by blocked computations.
-As indicated in the above output, this generates a trail file. We can replay it with Spin’s `-t -p` switches, inspect the output, and see how the computation led to the error. The output below, truncated for clarity, shows the sequence of steps that led to the assertion failure.
+The `-E` switch tells the verifier not to report invalid end-state errors. Here, this switch keeps the output focused on assertion violations.
+As we see in the output above, a trail file named _`atest.pml.trail`_ is generated. We can replay that trail file with Spin’s `-t -p` switches, inspect the output, and see how the computation led to the error. The output below, truncated for clarity, shows the sequence of steps that led to the assertion failure.
 
 ```
 $ spin -t -p atest.pml
@@ -254,7 +253,7 @@ At that point, we could imagine Spin backtracking. Let’s look at the following
 
 _Figure 3_ 
 
-After hitting a dead-end, it backtracks to Region 1 (visualized as the red arrow going from 7(Q) back to 2(Q)). It places the queen in cell 2 in region 1 (shown as 2(Q), colored in green). After successfully placing a queen there, it moves on to region 2, where it rejects cell 6 due to a column conflict, and cells 5 and 7 due to diagonal clashes. It then selects cell 8. In region 3, given all constraints, it places the queen in cell 9, and finally, in region 4, respecting constraints, it finds a valid position at cell 15, thus completing one valid solution in compliance with the row, column, and region constraints (the solved board is shown at the right).
+After hitting a dead-end, Spin backtracks to the most recent nondeterministic choice whose other alternatives have not yet been explored. In the figure, I illustrate that next unexplored choice as a jump back to an earlier region, shown by the red arrow going from 7(Q) back to 2(Q). The red arrow is only a visual aid showing where the search resumes after backtracking; it is not meant to be read as one literal execution step. From there, it places the queen in cell 2 in region 1 (shown as 2(Q), colored in green). After successfully placing a queen there, it moves on to region 2, where it rejects cell 6 due to a column conflict, and cells 5 and 7 due to diagonal clashes. It then selects cell 8. In region 3, given all constraints, it places the queen in cell 9, and finally, in region 4, respecting constraints, it finds a valid position at cell 15, thus completing one valid solution in compliance with the row, column, and region constraints (the solved board is shown at the right).
 
 Now let’s begin working toward a solution in Spin, with the goal of finding all possible solutions to the puzzle. We’ll solve it first for a `4x4` grid as it’s simple, and then the same code, with minor changes, would be used to solve it for a `9x9` grid. 
 
@@ -289,15 +288,19 @@ We also define a few variables at the top of the model:
 
 ```
 #define N 4
+#define ADJ1(a,b) ((a) == (b) + 1 || (b) == (a) + 1)
 byte result[N];    
 bool rows[N];      
 bool cols[N];           
 bool regions[N];
+byte qcol[N];
 ```
 
 The _`result`_ array stores the final solution. Each _`result[region-1]`_ holds the cell where a queen is placed in that region. For example, `result[0] = 2` means the queen is placed in cell 2 in region 1.
 
 The array _`rows`_ keeps track of whether a queen has already been placed in a given row. For example, _`rows[i]`_ is true if there is a queen in row _`i`_. Similarly, _`cols`_ keeps track of whether a queen has been placed in a given column. 
+
+The array _`qcol`_ records, for each row that already contains a queen, the column where that queen was placed. For example, if _`qcol[2] = 0`_, then the queen in row 2 sits in column 0. The macro _`ADJ1(a,b)`_ is true exactly when two columns differ by 1. This is enough for the diagonal-adjacency test: _`rows`_ tells us whether a neighboring row already has a queen, _`qcol`_ tells us that queen’s column, and _`ADJ1`_ tells us whether that column is immediately to the left or right of the candidate column. So we can enforce the diagonal rule without storing the whole board.
 
 We process the board region by region, and record each chosen cell in the _`result`_ array. 
 
@@ -309,7 +312,7 @@ The general outline of what happens in the program is as follows. As the program
     - Ensures that we are not placing a queen on an adjacent diagonal. If we are, the process is blocked.
     - Mark the row and column as processed.
     - Places the queen and records its position in the _`result`_ array.
--  After exiting the loop, we use `assert(false)` at the end to make the model checker backtrack and explore all computations that successfully exit the loop. 
+-  After exiting the loop, we deliberately use `assert(false)` so that every computation that successfully exits the loop triggers an assertion violation and produces an error trail, which we can then replay to recover the solution. 
 
 Let’s quickly go over these one by one. 
 
@@ -333,7 +336,7 @@ As we discussed earlier, the execution continues if above is true, meaning the r
 
 After checking the row, we similarly block the placement if a queen has already been placed in the same column. We also block the move if a queen has already been placed in this region. 
 
-For the adjacency constraint, before placing a queen we check the immediate diagonal neighbors—upper-left, upper-right, lower-left, and lower-right. If any of those cells already contain a queen, the move is blocked. 
+For the adjacency constraint, the code does not inspect the four diagonal cells directly. Instead, it uses an equivalent check that matches the bookkeeping we maintain. Since _`rows[r]`_ tells us whether row _`r`_ already has a queen and _`qcol[r]`_ tells us that queen’s column, we only need to compare the candidate cell with the already placed queens in the neighboring rows _`row-1`_ and _`row+1`_. If one of those rows already contains a queen and its column differs from _`col`_ by 1, then the candidate cell is diagonally adjacent to an existing queen, so the move is blocked. We check both neighboring rows because the search proceeds in region order, not row order, so either neighboring row may already have been filled.
 
 Once a valid cell is found, we mark the row, column, and region as occupied and we store the queen’s position in the _`result`_ array:
 
@@ -350,7 +353,7 @@ As you can see, near the end, after the loop, we’ve added this line:
 assert(false); 
 ```
 
-This causes the model checker to backtrack and search for computations that successfully exit the loop, meaning computations that have placed queens on the board according to the rules. Any such computation is not just a counterexample to our assertion claim, but also a valid solution to the puzzle. [Here is the code](https://github.com/wyounas/linkedin_queens/blob/main/queenfourbyfour.pml) for `4x4` grid. 
+This does not tell Spin to search for solutions directly. Rather, it deliberately turns every execution that gets past all the guards and reaches this point into an assertion violation. That assertion violation makes Spin write an error trail, and in this case that trail contains a valid solution. So the reported “error” here is not a bad puzzle state; it is the mechanism we use to make Spin emit a trail for each successful placement. [Here is the code](https://github.com/wyounas/linkedin_queens/blob/main/queenfourbyfour.pml) for `4x4` grid. 
 
 Now to find a solution, we run the model and then run the verifier. 
 
@@ -579,3 +582,7 @@ _Please keep in mind that I’m only human, and there’s a chance this post con
 3. Ben Ari's book introduced me to nondeterminism in Spin. 
 [Ben-Ari, M. (2008). Principles of the Spin model checker. Springer.](https://link.springer.com/book/10.1007/978-1-84628-770-1)
 4. Repository containing all code in this post: [https://github.com/wyounas/linkedin_queens](https://github.com/wyounas/linkedin_queens)
+5. Spin manual, _assert_: [https://spinroot.com/spin/Man/assert.html](https://spinroot.com/spin/Man/assert.html)
+6. Spin manual, condition statements: [https://spinroot.com/spin/Man/condition.html](https://spinroot.com/spin/Man/condition.html)
+7. Spin manual, _pan_ options including `-E`: [https://spinroot.com/spin/Man/Pan.html](https://spinroot.com/spin/Man/Pan.html)
+8. Spin manual, _if_: [https://spinroot.com/spin/Man/if.html](https://spinroot.com/spin/Man/if.html)
