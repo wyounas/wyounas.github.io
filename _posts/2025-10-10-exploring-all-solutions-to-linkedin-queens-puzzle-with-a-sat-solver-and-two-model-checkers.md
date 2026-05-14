@@ -131,18 +131,22 @@ Now let’s try to solve the puzzle using a model checker, again with the goal o
 
 ## Solving the Puzzle Using Spin 
 
-A model checker is a tool that explores all the possible ways a model can execute. This is useful when a system has many possible behaviors, for example because of concurrency or nondeterministic choices. Spin is a model checker for models written in Promela, and its main strength is that it can systematically explore those behaviors. We can state properties that the model should satisfy, and Spin checks whether they hold in all reachable executions, reporting a counterexample if they do not.
+You can use a model checker to check the correctness of a system by first creating a model of that system. A model abstracts the behavior you want to study while leaving out details that are not relevant to the question you are asking. Once you have written the model, you specify correctness properties that should hold in all reachable states or executions of the model. The model checker then explores those executions and searches for violations of those properties. If it finds a violation, it reports a counterexample that you can study to understand the error and improve the model or the system design.
 
-In this section, we use Spin in a slightly different way. We are not using it mainly to check whether the model satisfies a correctness property. Instead, we encode the puzzle as a sequence of choices constrained by the puzzle rules and let Spin explore the resulting executions. Any execution that gets all the way through those constraints corresponds to a valid solution to the puzzle.
+Spin can systematically explore many program behaviors that arise because of nondeterministic choices or concurrency. If Spin finds an execution that violates a stated property, it reports that execution as a counterexample
 
-Let’s quickly review Spin’s verification process. Spin analyzes the correctness of a system through verification, which typically involves three main steps:
+For Spin, the model is a Promela program. For this puzzle, we plan to write a Promela model that describes how queens may be placed and which placements are not allowed, so Spin can search for valid solutions.
+
+Also, to solve this puzzle, we are not using Spin mainly to check whether the model satisfies a correctness property. Instead, we encode the puzzle as a sequence of choices constrained by the puzzle rules and let Spin explore the resulting executions. Any execution that gets all the way through those constraints corresponds to a valid solution to the puzzle.
+
+Let’s quickly review Spin’s verification process. Spin analyzes the correctness of a system through verification, which involves three main steps:
 
 - First, write the model in Promela and save it in a `.pml` file.
 - Generate a verifier. Run _`spin -a model.pml`_ to generate a C file named _`pan.c`_ (the name _`pan`_ is historically derived from “protocol analyzer”). Then compile that file with a C compiler, for example _`gcc -o pan pan.c`_. The resulting executable, usually named _`pan`_, is Spin’s verifier.
 - Run the verifier. One can run it using the shell command _`./pan`_. It reports whether all computations are correct or there exists a computation that contains an error. If an error is found, the verifier produces a trail file which can be used to reconstruct the erroneous computation. We'll make use of trail files shortly, to extract valid puzzle solutions.
 
 
-Let's now turn to an example that introduces two Spin concepts, blocking expressions and nondeterminism, which we’ll use to solve the puzzle.
+Let's now turn to an example that introduces two Spin concepts, blocking expressions and nondeterminism, which we’ll use to solve the puzzle. Nondeterminism lets Spin try different queen placements, and blocking expressions let Spin discard invalid placements that break the puzzle rules.
 
 The first concept is a blocking expression that blocks execution when it evaluates to false. In Spin terms, this means the process that was running cannot move on to its next statement. For example, the following statement blocks execution when _`x`_ equals 2:
 
@@ -221,7 +225,7 @@ So how do we find those valid combinations that are solutions to LinkedIn Queens
 
 _Figure 1_ helped me come up with a solution. In that figure, we chose a value for _`x`_ nondeterministically from five options. The model checker then explored all five possible computations, one for each choice. Similarly, if we let the model checker nondeterministically pick one cell from each region, while enforcing the puzzle rules, and then backtrack through all possibilities, we can find all valid solutions.
 
-To visualize this, I found it helpful to imagine a tree-like structure, as shown in _Figure 2_ below (If the image appears unclear, please consider opening it in a new tab.). It’s of course not ideal, but it helped me think through the problem. For both _Figure 2_ and _Figure 3_ below, we use the same board and colored region configuration as in the Python code above—where 1s represent region colored red, 2s represent region colored green, 3s represent region in yellow, and 4s represent region in pink. The board layout looks like this:
+To visualize this, I found it helpful to imagine a tree-like structure, as shown in _Figure 2_ below (If the image appears unclear, please consider opening it in a new tab.). It is of course not ideal, but it helped me think through the problem. For both _Figure 2_ and _Figure 3_ below, we use the same board and colored region configuration as in the Python code above—where 1s represent region colored red, 2s represent region colored green, 3s represent region in yellow, and 4s represent region in pink. The board layout looks like this:
 ```
 1 1 1 1
 2 2 2 2
@@ -242,7 +246,7 @@ In the figure, in Region 1, we show a branch going out from cell 1 just to save 
 
 _Figure 2_ 
 
-Now let’s see what’s going on in Figure 2. A queen is first placed in cell 1, and then the search moves on to Region 2, where cells 5 and 6 are ignored because of the constraints. It places the queen in cell 7. The board at this point is shown on the right. When it moves to Region 3, it hits a dead-end, there is no cell available where the queen can be placed without violating the constraints. 
+Now let’s see what is going on in Figure 2. A queen is first placed in cell 1, and then the search moves on to Region 2, where cell 5 is ignored because of a column constraint and cell 6 is ignored because of a diagonal constraint. It places the queen in cell 7. The board at this point is shown on the right. When it moves to Region 3, it hits a dead-end, there is no cell available where the queen can be placed without violating the constraints. 
 
 At that point, we could imagine Spin backtracking. Let’s look at the following illustration to see what happens next. 
 
@@ -251,9 +255,9 @@ At that point, we could imagine Spin backtracking. Let’s look at the following
 
 _Figure 3_ 
 
-After hitting a dead-end, Spin backtracks to the most recent nondeterministic choice whose other alternatives have not yet been explored. In the figure, I illustrate that next unexplored choice as a jump back to an earlier region, shown by the red arrow going from 7(Q) back to 2(Q). The red arrow is only a visual aid showing where the search resumes after backtracking; it is not meant to be read as one literal execution step. From there, it places the queen in cell 2 in region 1 (shown as 2(Q), colored in green). After successfully placing a queen there, it moves on to region 2, where it rejects cell 6 due to a column conflict, and cells 5 and 7 due to diagonal clashes. It then selects cell 8. In region 3, given all constraints, it places the queen in cell 9, and finally, in region 4, respecting constraints, it finds a valid position at cell 15, thus completing one valid solution in compliance with the row, column, and region constraints (the solved board is shown at the right).
+After hitting a dead-end, Spin backtracks to the most recent nondeterministic choice whose other alternatives have not yet been explored. In the figure, I illustrate that next unexplored choice as a jump back to an earlier region, shown by the red arrow going from 7(Q) back to 2(Q). The red arrow is only a visual aid showing where the search resumes after backtracking; it is not meant to be read as one literal execution step. From there, it places the queen in cell 2 in region 1 (shown as 2(Q), colored in green). After successfully placing a queen there, it moves on to region 2, where it rejects cell 6 due to a column conflict, and cells 5 and 7 due to diagonal clashes. It then selects cell 8. In region 3, given all constraints, it places the queen in cell 9, and finally, in region 4, respecting constraints, it finds a valid position at cell 15, thus completing one valid solution in compliance with the puzzle constraints (the solved board is shown at the right).
 
-Now let’s begin working toward a solution in Spin, with the goal of finding all possible solutions to the puzzle. We’ll solve it first for a `4x4` grid as it’s simple, and then the same code, with minor changes, would be used to solve it for a `9x9` grid. 
+Now let’s begin working toward a solution in Spin, with the goal of finding all possible solutions to the puzzle. We’ll solve it first for a `4x4` grid as it is simple, and then the same code, with minor changes, would be used to solve it for a `9x9` grid. 
 
 We use the same board and colored regions configuration as given above. We encode the region of 1s as:
 ```promela
@@ -304,7 +308,7 @@ This helps because we do not need to store the whole board to check diagonal adj
 
 The macro _`ADJ1(a,b)`_ is true when the two column numbers differ by 1. In plain terms, it tells us whether one column is immediately to the left or right of the other. Two queens touch diagonally only if one is in a neighboring row and their columns differ by 1. 
 
-That is why _`rows`_, _`qcol`_, and _`ADJ1`_ are enough to detect forbidden diagonal adjacency without storing the whole board. This works because a diagonal-touch conflict can only occur with a queen in the row just above or just below the candidate cell, and only when that queen’s column differs by 1. The array _`rows`_ tells us whether a neighboring row already contains a queen, _`qcol`_ tells us which column that queen is in, and _`ADJ1`_ checks whether the two columns are 1 apart.
+That is why _`rows`_, _`qcol`_, and _`ADJ1`_ are enough to detect forbidden diagonal adjacency without storing the whole board. This works because a diagonal-touch conflict can only occur with a queen in the row just above or just below the candidate cell, and only when that queen’s column differs by 1. The array _`rows`_ tells us whether a neighboring row already contains a queen, _`qcol`_ tells us which column that queen is in, and _`ADJ1`_ checks whether the two columns differ by 1.
 
 The general outline of what happens in the program is as follows. As the program processes the board region by region iteratively, from region 1 to 4, it performs these steps in sequence (we’ll go over each in some detail shortly):
 
@@ -314,7 +318,7 @@ The general outline of what happens in the program is as follows. As the program
     - Ensures that we are not placing a queen on an adjacent diagonal. If we are, the process is blocked.
     - Mark the row, column, and region as occupied.
     - Places the queen and records its position in the _`result`_ array.
--  After exiting the loop, we deliberately use `assert(false)` so that every computation that successfully exits the loop triggers an assertion violation and produces an error trail, which we can then replay to recover the solution. 
+- After exiting the loop, we deliberately use `assert(false)` so that every computation that successfully exits the loop triggers an assertion violation and produces an error trail. When we replay that trail, we can read the values assigned to the _`result`_ array; those values are the cells where the queens were placed, so they give us the solution. 
 
 Let’s quickly go over these one by one. 
 
@@ -334,7 +338,7 @@ The program then checks and blocks if a queen has already been placed in the cho
 !rows[row];  
 ```
 
-As we discussed earlier, the execution continues if above is true, meaning the row is still available. It’s important to note that, because of these blocking statements, many computations will be blocked, but some won’t. To find valid solutions to the puzzle, we’ll make use of the assertion claim. More on this in a bit.
+As we discussed earlier, the execution continues if above is true, meaning the row is still available. It is important to note that, because of these blocking statements, many computations will be blocked, but some will not. To find valid solutions to the puzzle, we will make use of the assertion claim. More on this in a bit.
 
 After checking the row, we similarly block the placement if a queen has already been placed in the same column. We also block the move if a queen has already been placed in this region. 
 
@@ -351,7 +355,7 @@ row 6       X       .       X
 
 Here _`C`_ is the candidate cell `(5, 4)`. The four _`X`_ cells are the only cells that touch it diagonally: `(4, 3)`, `(4, 5)`, `(6, 3)`, and `(6, 5)`.
 
-So the code asks: does row _`4`_ already contain a queen, and if so, is it in column _`3`_ or _`5`_? It asks the same question for row _`6`_. The array _`rows`_ tells us whether those neighboring rows already have queens. If they do, _`qcol`_ tells us the corresponding columns. Then _`ADJ1(qcol[neighboring_row], col)`_ checks whether the stored queen column and the candidate column differ by 1. If they do, the candidate would touch an existing queen diagonally, so Spin blocks that execution.
+So the code asks: does row _`4`_ already contain a queen, and if so, is it in column _`3`_ or _`5`_? It asks the same question for row _`6`_. The array _`rows`_ tells us whether those neighboring rows already have queens. If they do, _`qcol`_ tells us the corresponding columns. Then _`ADJ1(qcol[neighboring_row], col)`_ checks whether the stored queen column and the candidate column differ by 1. If they do, the candidate would touch an existing queen diagonally, so Spin blocks that execution. For example, if the candidate cell is (5, 4) and there is already a queen at (4, 5), then qcol[4] is 5, ADJ1(5, 4) is true, and Spin blocks that choice.
 
 We check both neighboring rows because the search proceeds in region order, not row order. By the time we consider a candidate cell, either neighboring row may already have been filled.
 
@@ -363,18 +367,18 @@ cols[col] = true;
 result[region-1] = cell;
 ```
 
-At this point, we’ve finished processing the region, so we move on to the next by restarting the loop. This process repeats until all regions have been processed.
+At this point, we have finished processing the region, so we move on to the next by restarting the loop. This process repeats until all regions have been processed.
 
-As you can see, near the end, after the loop, we’ve added this line:
+As you can see, near the end, after the loop, we have added this line:
 ```
 assert(false); 
 ```
 
-This does not tell Spin to search for solutions directly. Rather, it deliberately turns every execution that gets past all the guards and reaches this point into an assertion violation. That assertion violation makes Spin write an error trail, and in this case the trail contains a valid solution. So the reported “error” here is not a bad puzzle state; it is the mechanism we use to make Spin emit a trail for each successful placement. [Here is the code](https://github.com/wyounas/linkedin_queens/blob/main/queenfourbyfour.pml) for `4x4` grid. 
+This does not tell Spin to search for solutions directly. Rather, it deliberately turns every execution that gets past all the guards and reaches this point into an assertion violation. That assertion violation makes Spin write an error trail. When we replay the trail, Spin shows the assignments made along that execution, including the final values in the _`result`_ array. Those values identify the cells that contain queens. So the reported “error” here is not a bad puzzle state; it is the mechanism we use to make Spin emit a trail for each successful placement. [Here is the code](https://github.com/wyounas/linkedin_queens/blob/main/queenfourbyfour.pml) for `4x4` grid. 
 
 Now to find a solution, we run the model and then run the verifier. 
 
-You’ll see an assertion violation, along with a message indicating that a trail file has been written:
+You will see an assertion violation, along with a message indicating that a trail file has been written:
 ```
 $ spin -a queenfourbyfour.pml
 $ gcc -o pan pan.c
@@ -388,7 +392,7 @@ Replay the trail file with command:
 $ spin -p -t -k queenfourbyfour.pml.trail  queenfourbyfour.pml
 ```
 
-The above will generate output that includes the contents of the _`result`_ array, our solution to the puzzle. Somewhere near the end of the generated output, you’ll see the _`result`_ array printed:
+The above will generate output that includes the contents of the _`result`_ array, our solution to the puzzle. Somewhere near the end of the generated output, you will see the _`result`_ array printed:
 
 ```
 result[0] = 2
@@ -405,7 +409,7 @@ If we plot the above values from the result array onto a board, we get a valid s
  .  .  Q  . 
 ```
 
-But this gives us just one solution to the puzzle. How can we find all solutions, ideally without adding any more code to our existing model? As we did earlier, by running _`./pan -E -c0 -e`_. You’ll get two solutions to the puzzle in respective trail files (i.e., _queenfourbyfour.pml1.trail_ and _queenfourbyfour.pml2.trail_). Here is the second solution:
+But this gives us just one solution to the puzzle. How can we find all solutions, ideally without adding any more code to our existing model? As we did earlier, by running _`./pan -E -c0 -e`_. You will get two solutions to the puzzle in respective trail files (i.e., _queenfourbyfour.pml1.trail_ and _queenfourbyfour.pml2.trail_). Here is the second solution:
 
 ```
 result[0] = 3
@@ -441,9 +445,7 @@ result[8] = 70
 
 I took the original image and, based on the values in the _`result`_ array, placed queens (marked as "Q" above) in the image. It looks like a valid solution to the puzzle that satisfies all the constraints. (Please ignore the small ‘x’ in the image above, it was just a placeholder in the original image.)
 
-Just for fun and curiosity, I wanted to find all solutions to the puzzle without the region constraint, that is, to find all valid queen placements where exactly one queen is placed in each row and column, and no two queens are adjacent, including diagonally.
-
-[This code](https://github.com/wyounas/linkedin_queens/blob/main/queens_wo_region.pml) does that, and it reports 5242 solutions to the puzzle when we drop the region constraint for a `8 x 8` grid (please note that if you run this, it'll generate as many trail files as there are solutions).
+Just for fun and curiosity, I wanted to find all solutions to the puzzle without the region constraint, that is, to find all valid queen placements where exactly one queen is placed in each row and column, and no two queens are adjacent, including diagonally. [This code](https://github.com/wyounas/linkedin_queens/blob/main/queens_wo_region.pml) does that, and it reports 5242 solutions to the puzzle when we drop the region constraint for a `8 x 8` grid (please note that if you run this, it will generate as many trail files as there are solutions).
 
 Basically, to sum it up, the method we have used to solve the puzzle is this: represent the unknown parts of the problem as nondeterministic choices, and express the rules so that invalid choices are blocked as early as possible. Spin then systematically explores the remaining computations and backtracks whenever it reaches a dead end. Any computation that makes it all the way to the end corresponds to a valid solution. The same method can be used for other problems where the goal is to choose values or positions that satisfy a set of rules.
 
