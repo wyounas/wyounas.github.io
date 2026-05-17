@@ -131,13 +131,11 @@ Now let’s try to solve the puzzle using a model checker, again with the goal o
 
 ## Solving the Puzzle Using Spin 
 
-You can use a model checker to check the correctness of a system by first creating a model of that system. A model abstracts the behavior you want to study while leaving out details that are not relevant to the question you are asking. Once you have written the model, you specify correctness properties that should hold in all reachable states or executions of the model. The model checker then explores those executions and searches for violations of those properties. If it finds a violation, it reports a counterexample that you can study to understand the error and improve the model or the system design.
+You can use a model checker to check the correctness of a system. You start by first creating a model of that system. A model abstracts the behavior you want to study while leaving out details that are not relevant to the question you are asking. Once you have written the model, you specify correctness properties that should hold in all reachable executions of the model. The model checker then explores those executions and searches for violations of those properties. If it finds a violation, it reports a counterexample that you can study to understand the error and improve the model or the system design.
 
-Spin can systematically explore many program behaviors that arise because of nondeterministic choices or concurrency. If Spin finds an execution that violates a stated property, it reports that execution as a counterexample
+Spin is a model checker that works with models written in Promela. It can systematically explore many program behaviors that arise because of nondeterministic choices or concurrency. 
 
-For Spin, the model is a Promela program. For this puzzle, we plan to write a Promela model that describes how queens may be placed and which placements are not allowed, so Spin can search for valid solutions.
-
-Also, to solve this puzzle, we are not using Spin mainly to check whether the model satisfies a correctness property. Instead, we encode the puzzle as a sequence of choices constrained by the puzzle rules and let Spin explore the resulting executions. Any execution that gets all the way through those constraints corresponds to a valid solution to the puzzle.
+For this puzzle, we will write a Promela model that describes how queens may be placed and which placements are not allowed, so Spin can search for valid solutions. We are not using Spin mainly to check whether the model satisfies a correctness property. Instead, we encode the puzzle as a sequence of choices constrained by the puzzle rules and let Spin explore the resulting executions. Any execution that gets all the way through those constraints corresponds to a valid solution to the puzzle.
 
 Let’s quickly review Spin’s verification process. Spin analyzes the correctness of a system through verification, which involves three main steps:
 
@@ -500,11 +498,18 @@ atomic action PlaceQueens:
         col = (cell - 1) % N
 ```
 
-
-We then use _require_ guards to enforce all puzzle rules. Each guard ensures that the row, column, and region are free, and that no queen is placed on any of the four immediate diagonals. If any guard fails, the action stops; otherwise, we place the queen and mark the row, column, and region as used. We also then block the 
-four immediate diagonals so they can't be used. 
+We then use _require_ guards to check the puzzle rules for the chosen cell. Each guard ensures that the row, column, and region are free, and that no queen is placed on any of the four immediate diagonals. If a _require_ fails, FizzBee abandons only that candidate branch; the other choices produced by _any_ are still explored. If all guards pass, we place the queen, mark the row, column, and region as used, and block the four diagonally adjacent cells so they cannot be used.
 ```
+
+while region_idx < N:
+
+    cells_in_region = REGIONS[region_idx]
+    cell = any cells_in_region
     
+    row = (cell - 1) // N
+    col = (cell - 1) % N
+
+
     require row_queen_placed_in[row] == False  # row must be free
     require col_queen_placed_in[col] == False  # col must be free
     require region_queen_placed_in[region_idx] == False  # region must be free
@@ -525,6 +530,8 @@ four immediate diagonals so they can't be used.
         diagonals_blocked[row+1][col-1] = True # lower-left
     if row < N-1 and col < N-1:
         diagonals_blocked[row+1][col+1] = True # lower-right
+    
+    region_idx += 1
 
 ```
 
@@ -575,7 +582,7 @@ An invalid board means these things:
 
 If any of these conditions hold, the board is invalid. A counterexample to this assertion is a valid solution. We check for these assertions in the invariant section that begins with the _always assertion_ keyword. When none of these invalid-board conditions hold, the invariant returns _False_. FizzBee then reports a counterexample, a board that violates the “invalid board” assertion, which represents a valid solution to the puzzle.
 
-When I run this [code](https://github.com/wyounas/linkedin_queens/blob/main/queens.fizz) for the above `9x9` LinkedIn Queens puzzle, FizzBee returns one counterexample. You can find it by checking the value of the _board_ variable in the output. And the counterexample corresponds to a valid LinkedIn Queens solution.
+When I run this [code](https://github.com/wyounas/linkedin_queens/blob/main/queens.fizz) for the above `9x9` LinkedIn Queens puzzle, FizzBee returns a counterexample. You can find it by checking the value of the _board_ variable in the output. And the counterexample corresponds to a valid LinkedIn Queens solution.
 
 Below is the resulting `9×9` board, taken from the _board_ variable in the counterexample. A value of 1 marks a cell where a queen is placed.
 
@@ -591,9 +598,9 @@ Below is the resulting `9×9` board, taken from the _board_ variable in the coun
 [0, 0, 0, 1, 0, 0, 0, 0, 0]
 ```
 
-So far, I’ve only been able to get FizzBee to output a single counterexample as a solution even when I use a board that has multiple solutions. Currently, FizzBee doesn’t list all counterexamples. However, JP (the creator of FizzBee, who is always helpful) showed me an alternative approach. He suggested printing the board inside the assertion code at the end and returning true instead of false.
+Unlike Spin with the options used earlier, FizzBee does not directly list every counterexample for this model. So this FizzBee version is best read as a way to find a valid solution. To enumerate solutions, JP (the creator of FizzBee) suggested a workaround: print the board when the assertion reaches a valid completed board, and return `True` instead of `False` so the model checker continues exploring.
 
-_Please keep in mind that I’m only human, and there’s a chance this post contains errors, even though I’ve done my best to avoid them. If you notice anything off, I’d appreciate a correction. Please feel free to [send me an email](mailto:waqas.younas@gmail.com)._
+_Please keep in mind that I’m only human, and there’s a chance this post contains errors, even though I’ve done my best to avoid them. If you notice anything off, I’d appreciate a correction. Please feel free to [send me an email](mailto:waqas.younas@gmail.com). Thanks to JP for reading the draft._
 
 
 ## References
