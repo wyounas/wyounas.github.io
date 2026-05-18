@@ -1,0 +1,661 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Spin Search Visualization — LinkedIn Queens 4×4</title>
+<style>
+  .qsv-root *, .qsv-root *::before, .qsv-root *::after { box-sizing: border-box; }
+  .qsv-root {
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+    color: #1d1d1f;
+    background: #fafafa;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    padding: 24px;
+    border: 1px solid #e5e5e7;
+    border-radius: 10px;
+    max-width: 980px;
+    margin: 0 auto;
+  }
+  .qsv-root h2 {
+    font-size: 17px;
+    font-weight: 600;
+    margin: 0 0 4px 0;
+    letter-spacing: -0.01em;
+  }
+  .qsv-root .qsv-sub {
+    font-size: 13px;
+    color: #6e6e73;
+    margin-bottom: 20px;
+  }
+  .qsv-grid {
+    display: grid;
+    grid-template-columns: 1fr 280px;
+    gap: 24px;
+    align-items: start;
+  }
+  @media (max-width: 760px) {
+    .qsv-grid { grid-template-columns: 1fr; }
+  }
+  .qsv-panel {
+    background: #ffffff;
+    border: 1px solid #e5e5e7;
+    border-radius: 8px;
+    padding: 16px;
+  }
+  .qsv-panel-title {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: #6e6e73;
+    margin-bottom: 12px;
+  }
+  .qsv-controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+    margin-bottom: 16px;
+  }
+  .qsv-btn {
+    font: inherit;
+    font-size: 13px;
+    padding: 7px 13px;
+    border: 1px solid #e5e5e7;
+    background: #ffffff;
+    color: #1d1d1f;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background 150ms ease, border-color 150ms ease;
+  }
+  .qsv-btn:hover { background: #f5f5f7; }
+  .qsv-btn:active { background: #ebebed; }
+  .qsv-btn:disabled { color: #c7c7cc; cursor: not-allowed; background: #ffffff; }
+  .qsv-btn.qsv-primary {
+    background: #1d1d1f;
+    color: #ffffff;
+    border-color: #1d1d1f;
+  }
+  .qsv-btn.qsv-primary:hover { background: #2c2c2e; }
+  .qsv-btn.qsv-primary:disabled { background: #c7c7cc; border-color: #c7c7cc; color: #ffffff; }
+  .qsv-step-info {
+    font-size: 12px;
+    color: #6e6e73;
+    margin-left: auto;
+    font-variant-numeric: tabular-nums;
+  }
+  #qsv-tree {
+    width: 100%;
+    height: 380px;
+    display: block;
+  }
+  .qsv-node circle {
+    transition: fill 200ms ease, stroke 200ms ease;
+  }
+  .qsv-node text {
+    font-size: 11px;
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    fill: #6e6e73;
+    pointer-events: none;
+    transition: fill 200ms ease, font-weight 200ms ease;
+    text-anchor: middle;
+  }
+  .qsv-node.qsv-untried circle { fill: #ffffff; stroke: #d2d2d7; stroke-width: 1; }
+  .qsv-node.qsv-current circle { fill: #f0f0ff; stroke: #bdb8ff; stroke-width: 1.5; }
+  .qsv-node.qsv-current text { fill: #5a55b8; font-weight: 600; }
+  .qsv-node.qsv-blocked circle { fill: #fef2f2; stroke: #f5b1a8; stroke-width: 1; }
+  .qsv-node.qsv-blocked text { fill: #c44b3e; text-decoration: line-through; }
+  .qsv-node.qsv-placed circle { fill: #f0f0f2; stroke: #a5a5ab; stroke-width: 1; }
+  .qsv-node.qsv-placed text { fill: #3d3d40; font-weight: 600; }
+  .qsv-node.qsv-solution circle { fill: #f0f9f4; stroke: #a7d5b0; stroke-width: 1.5; }
+  .qsv-node.qsv-solution text { fill: #3a7a4d; font-weight: 600; }
+  .qsv-link {
+    fill: none;
+    stroke: #d2d2d7;
+    stroke-width: 1;
+    transition: stroke 200ms ease, stroke-width 200ms ease;
+  }
+  .qsv-link.qsv-link-active { stroke: #1d1d1f; stroke-width: 1.5; }
+  .qsv-region-label {
+    font-size: 10px;
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    fill: #8e8e93;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  #qsv-board {
+    width: 100%;
+    max-width: 240px;
+    height: auto;
+    aspect-ratio: 1 / 1;
+    display: block;
+    margin: 0 auto;
+  }
+  .qsv-cell {
+    transition: stroke 200ms ease, stroke-width 200ms ease;
+  }
+  .qsv-cell-label {
+    font-size: 9px;
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    fill: #8e8e93;
+    pointer-events: none;
+  }
+  .qsv-queen {
+    font-size: 22px;
+    text-anchor: middle;
+    dominant-baseline: central;
+    pointer-events: none;
+    fill: #1d1d1f;
+  }
+  .qsv-array { margin-bottom: 14px; }
+  .qsv-array:last-child { margin-bottom: 0; }
+  .qsv-array-name {
+    font-size: 11px;
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    color: #6e6e73;
+    margin-bottom: 4px;
+  }
+  .qsv-array-cells {
+    display: flex;
+    gap: 4px;
+  }
+  .qsv-array-cell {
+    flex: 1;
+    height: 24px;
+    border: 1px solid #e5e5e7;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    color: #1d1d1f;
+    background: #ffffff;
+    transition: background 200ms ease, border-color 200ms ease, color 200ms ease;
+    font-variant-numeric: tabular-nums;
+  }
+  .qsv-array-cell.qsv-true { background: #1d1d1f; color: #ffffff; border-color: #1d1d1f; }
+  .qsv-array-cell.qsv-set { background: #f5f5f7; }
+  .qsv-log {
+    margin-top: 16px;
+    padding: 10px 12px;
+    background: #ffffff;
+    border: 1px solid #e5e5e7;
+    border-radius: 6px;
+    font-size: 12px;
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    color: #1d1d1f;
+    min-height: 36px;
+  }
+  .qsv-log-action {
+    display: inline-block;
+    padding: 1px 7px;
+    border-radius: 3px;
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin-right: 8px;
+  }
+  .qsv-log-try { background: #f5f5f7; color: #6e6e73; }
+  .qsv-log-block { background: #fef2f2; color: #c44b3e; }
+  .qsv-log-place { background: #f0f0f2; color: #3d3d40; }
+  .qsv-log-backtrack { background: #fef9f0; color: #a86d2e; }
+  .qsv-log-solution { background: #f0f9f4; color: #3a7a4d; }
+  .qsv-log-reason { color: #6e6e73; }
+</style>
+</head>
+<body>
+
+<div class="qsv-root">
+  <h2>Spin's search, step by step</h2>
+  <p class="qsv-sub">Each step is one nondeterministic choice. Blocked branches are rejected by a guard; the search backtracks and tries the next option.</p>
+
+  <div class="qsv-controls">
+    <button class="qsv-btn" id="qsv-reset">Reset</button>
+    <button class="qsv-btn" id="qsv-back">← Back</button>
+    <button class="qsv-btn qsv-primary" id="qsv-step">Step →</button>
+    <button class="qsv-btn" id="qsv-next-block">Next dead-end</button>
+    <button class="qsv-btn" id="qsv-next-solution">Next solution</button>
+    <span class="qsv-step-info" id="qsv-step-info">Step 0 / 0</span>
+  </div>
+
+  <div class="qsv-grid">
+    <div>
+      <div class="qsv-panel">
+        <div class="qsv-panel-title">Search Tree</div>
+        <svg id="qsv-tree" viewBox="0 0 620 360" preserveAspectRatio="xMidYMid meet"></svg>
+      </div>
+      <div class="qsv-log" id="qsv-log">&nbsp;</div>
+    </div>
+    <div>
+      <div class="qsv-panel" style="margin-bottom: 16px;">
+        <div class="qsv-panel-title">Board</div>
+        <svg id="qsv-board" viewBox="0 0 240 240"></svg>
+      </div>
+      <div class="qsv-panel">
+        <div class="qsv-panel-title">State</div>
+        <div class="qsv-array">
+          <div class="qsv-array-name">rows[]</div>
+          <div class="qsv-array-cells" id="qsv-rows"></div>
+        </div>
+        <div class="qsv-array">
+          <div class="qsv-array-name">result[]</div>
+          <div class="qsv-array-cells" id="qsv-result"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function() {
+  'use strict';
+
+  const SVG_NS = 'http://www.w3.org/2000/svg';
+  function svg(name, attrs) {
+    const el = document.createElementNS(SVG_NS, name);
+    if (attrs) for (const k in attrs) el.setAttribute(k, attrs[k]);
+    return el;
+  }
+
+  const N = 4;
+  const REGIONS = {
+    1: [1, 2, 3, 4],
+    2: [5, 6, 7, 8],
+    3: [9, 10, 11, 12],
+    4: [13, 14, 15, 16]
+  };
+  const REGION_COLORS = {
+    1: '#fef2f2',
+    2: '#f0f9f4',
+    3: '#fefce8',
+    4: '#fdf2f8'
+  };
+  const REGION_OF_CELL = {};
+  for (const r in REGIONS) for (const c of REGIONS[r]) REGION_OF_CELL[c] = parseInt(r);
+
+  function cellPos(cell) {
+    return [Math.floor((cell - 1) / N), (cell - 1) % N];
+  }
+
+  function generateTrace() {
+    const trace = [];
+    const state = {
+      rows: Array(N).fill(false),
+      cols: Array(N).fill(false),
+      qcol: Array(N).fill(-1),
+      result: Array(N).fill(0),
+      currentRegion: 1
+    };
+
+    function snapshot(s) {
+      return {
+        rows: s.rows.slice(),
+        cols: s.cols.slice(),
+        qcol: s.qcol.slice(),
+        result: s.result.slice(),
+        currentRegion: s.currentRegion
+      };
+    }
+
+    trace.push({ action: 'init', region: 0, cell: 0, state: snapshot(state) });
+
+    function violation(cell) {
+      const [row, col] = cellPos(cell);
+      if (state.rows[row]) return `row ${row} already occupied`;
+      if (state.cols[col]) return `col ${col} already occupied`;
+      if (row > 0 && state.rows[row - 1]) {
+        const qc = state.qcol[row - 1];
+        if (Math.abs(qc - col) === 1) return `diagonal-adjacent to queen at (${row - 1},${qc})`;
+      }
+      if (row < N - 1 && state.rows[row + 1]) {
+        const qc = state.qcol[row + 1];
+        if (Math.abs(qc - col) === 1) return `diagonal-adjacent to queen at (${row + 1},${qc})`;
+      }
+      return null;
+    }
+
+    function search(region) {
+      if (region > N) {
+        trace.push({ action: 'solution', region: N, cell: state.result[N - 1], state: snapshot(state) });
+        return;
+      }
+      state.currentRegion = region;
+      for (const cell of REGIONS[region]) {
+        const [row, col] = cellPos(cell);
+        trace.push({ action: 'try', region: region, cell: cell, state: snapshot(state) });
+        const reason = violation(cell);
+        if (reason) {
+          trace.push({ action: 'block', region: region, cell: cell, reason: reason, state: snapshot(state) });
+          continue;
+        }
+        state.rows[row] = true;
+        state.cols[col] = true;
+        state.qcol[row] = col;
+        state.result[region - 1] = cell;
+        trace.push({ action: 'place', region: region, cell: cell, state: snapshot(state) });
+        search(region + 1);
+        state.rows[row] = false;
+        state.cols[col] = false;
+        state.qcol[row] = -1;
+        state.result[region - 1] = 0;
+        state.currentRegion = region;
+        trace.push({ action: 'backtrack', region: region, cell: cell, state: snapshot(state) });
+      }
+    }
+
+    search(1);
+    return trace;
+  }
+
+  const TRACE = generateTrace();
+
+  const LEVEL_Y = [50, 130, 220, 310];
+
+  function currentClass(ev) {
+    if (!ev) return 'untried';
+    if (ev.action === 'try') return 'current';
+    if (ev.action === 'block') return 'blocked';
+    if (ev.action === 'place') return 'placed';
+    if (ev.action === 'solution') return 'solution';
+    return 'untried';
+  }
+
+  function computeTreeNodes(step) {
+    const placedByRegion = [null, null, null, null];
+    const triedByRegion = [new Set(), new Set(), new Set(), new Set()];
+    const blockedByRegion = [new Set(), new Set(), new Set(), new Set()];
+    // Each found solution is a full path [r1, r2, r3, r4]
+    const solutionPaths = [];
+
+    for (let i = 1; i <= step; i++) {
+      const ev = TRACE[i];
+      const ri = ev.region - 1;
+      if (ev.action === 'try') triedByRegion[ri].add(ev.cell);
+      else if (ev.action === 'block') blockedByRegion[ri].add(ev.cell);
+      else if (ev.action === 'place') placedByRegion[ri] = ev.cell;
+      else if (ev.action === 'backtrack') {
+        if (placedByRegion[ri] === ev.cell) placedByRegion[ri] = null;
+      } else if (ev.action === 'solution') {
+        solutionPaths.push(placedByRegion.slice());
+      }
+    }
+
+    // A node at level k (0-indexed) under parent chain [p0, p1, ..., p_{k-1}]
+    // is on a solution path iff some solutionPath has cell at position k AND
+    // matches p0..p_{k-1} at positions 0..k-1.
+    function isSolutionAt(cell, level, parentChain) {
+      for (const path of solutionPaths) {
+        if (path[level] !== cell) continue;
+        let match = true;
+        for (let j = 0; j < level; j++) {
+          if (path[j] !== parentChain[j]) { match = false; break; }
+        }
+        if (match) return true;
+      }
+      return false;
+    }
+
+    const currentEv = TRACE[step];
+    const currentCell = (currentEv && (currentEv.action === 'try' || currentEv.action === 'block' || currentEv.action === 'place'))
+      ? currentEv.cell : null;
+    const currentRegion = currentEv ? currentEv.region : 0;
+    const currentEvClass = currentClass(currentEv);
+
+    const nodes = [];
+    const links = [];
+
+    const r1Cells = REGIONS[1];
+    const r1Spacing = 100;
+    const r1Start = 240;
+    r1Cells.forEach((cell, i) => {
+      const x = r1Start + i * r1Spacing;
+      let st = 'untried';
+      if (cell === currentCell && currentRegion === 1) st = currentEvClass;
+      else if (isSolutionAt(cell, 0, [])) st = 'solution';
+      else if (placedByRegion[0] === cell) st = 'placed';
+      else if (blockedByRegion[0].has(cell)) st = 'blocked';
+      nodes.push({ cell, x, y: LEVEL_Y[0], state: st, region: 1 });
+    });
+
+    let parentCell = placedByRegion[0];
+    const parentChain = []; // ancestors above current level
+    for (let level = 1; level < N; level++) {
+      if (parentCell === null) break;
+      const parentNode = nodes.find(n => n.cell === parentCell);
+      if (!parentNode) break;
+      parentChain.push(parentCell);
+
+      const cells = REGIONS[level + 1];
+      const childSpacing = 60;
+      const childTotalWidth = (cells.length - 1) * childSpacing;
+      const childStartX = parentNode.x - childTotalWidth / 2;
+
+      cells.forEach((cell, i) => {
+        const x = childStartX + i * childSpacing;
+        let st = 'untried';
+        if (cell === currentCell && currentRegion === level + 1) st = currentEvClass;
+        else if (isSolutionAt(cell, level, parentChain)) st = 'solution';
+        else if (placedByRegion[level] === cell) st = 'placed';
+        else if (blockedByRegion[level].has(cell)) st = 'blocked';
+        nodes.push({ cell, x, y: LEVEL_Y[level], state: st, region: level + 1 });
+
+        const linkActive = (st === 'placed' || st === 'solution'
+          || (cell === currentCell && currentRegion === level + 1));
+        links.push({
+          x1: parentNode.x, y1: parentNode.y,
+          x2: x, y2: LEVEL_Y[level],
+          active: linkActive
+        });
+      });
+
+      parentCell = placedByRegion[level];
+    }
+
+    return { nodes, links };
+  }
+
+  const treeSvg = document.getElementById('qsv-tree');
+  const boardSvg = document.getElementById('qsv-board');
+  let currentStep = 0;
+
+  function setupBoard() {
+    const cellSize = 56;
+    const margin = 8;
+    while (boardSvg.firstChild) boardSvg.removeChild(boardSvg.firstChild);
+    for (let cell = 1; cell <= N * N; cell++) {
+      const [row, col] = cellPos(cell);
+      const x = margin + col * cellSize;
+      const y = margin + row * cellSize;
+      const region = REGION_OF_CELL[cell];
+      const rect = svg('rect', {
+        class: 'qsv-cell',
+        x: x, y: y, width: cellSize, height: cellSize,
+        fill: REGION_COLORS[region],
+        stroke: '#e5e5e7',
+        'stroke-width': 1,
+        'data-cell': cell
+      });
+      boardSvg.appendChild(rect);
+      const label = svg('text', {
+        class: 'qsv-cell-label',
+        x: x + 4, y: y + 11
+      });
+      label.textContent = cell;
+      boardSvg.appendChild(label);
+      const queen = svg('text', {
+        class: 'qsv-queen',
+        x: x + cellSize / 2, y: y + cellSize / 2 + 1,
+        'data-cell-queen': cell
+      });
+      boardSvg.appendChild(queen);
+    }
+  }
+
+  function setupTreeStatic() {
+    while (treeSvg.firstChild) treeSvg.removeChild(treeSvg.firstChild);
+    ['Region 1', 'Region 2', 'Region 3', 'Region 4'].forEach((label, i) => {
+      const t = svg('text', {
+        class: 'qsv-region-label',
+        x: 10, y: LEVEL_Y[i] + 4
+      });
+      t.textContent = label;
+      treeSvg.appendChild(t);
+    });
+    const linksG = svg('g', { id: 'qsv-tree-links' });
+    treeSvg.appendChild(linksG);
+    const nodesG = svg('g', { id: 'qsv-tree-nodes' });
+    treeSvg.appendChild(nodesG);
+  }
+
+  function setupArrays() {
+    ['qsv-rows', 'qsv-result'].forEach(id => {
+      const container = document.getElementById(id);
+      container.innerHTML = '';
+      for (let i = 0; i < N; i++) {
+        const div = document.createElement('div');
+        div.className = 'qsv-array-cell';
+        div.textContent = '·';
+        container.appendChild(div);
+      }
+    });
+  }
+
+  function renderTree(step) {
+    const { nodes, links } = computeTreeNodes(step);
+    const linksG = document.getElementById('qsv-tree-links');
+    const nodesG = document.getElementById('qsv-tree-nodes');
+
+    while (linksG.firstChild) linksG.removeChild(linksG.firstChild);
+    for (const ln of links) {
+      const path = svg('path', {
+        class: 'qsv-link' + (ln.active ? ' qsv-link-active' : ''),
+        d: `M${ln.x1},${ln.y1 + 8} L${ln.x2},${ln.y2 - 8}`
+      });
+      linksG.appendChild(path);
+    }
+
+    while (nodesG.firstChild) nodesG.removeChild(nodesG.firstChild);
+    for (const n of nodes) {
+      const g = svg('g', {
+        class: `qsv-node qsv-${n.state}`,
+        transform: `translate(${n.x},${n.y})`
+      });
+      g.appendChild(svg('circle', { r: 8 }));
+      const text = svg('text', { y: 22 });
+      text.textContent = n.cell;
+      g.appendChild(text);
+      const title = svg('title');
+      const [row, col] = cellPos(n.cell);
+      let tip = `Cell ${n.cell} (row ${row}, col ${col})`;
+      if (n.state === 'blocked') {
+        for (let i = currentStep; i >= 0; i--) {
+          if (TRACE[i].action === 'block' && TRACE[i].cell === n.cell) {
+            tip += ` — blocked: ${TRACE[i].reason}`;
+            break;
+          }
+        }
+      }
+      title.textContent = tip;
+      g.appendChild(title);
+      nodesG.appendChild(g);
+    }
+  }
+
+  function renderBoard(step) {
+    const s = TRACE[step].state;
+    for (let cell = 1; cell <= N * N; cell++) {
+      const q = boardSvg.querySelector(`[data-cell-queen="${cell}"]`);
+      if (q) q.textContent = '';
+    }
+    for (let r = 0; r < N; r++) {
+      const cell = s.result[r];
+      if (cell > 0) {
+        const q = boardSvg.querySelector(`[data-cell-queen="${cell}"]`);
+        if (q) q.textContent = '♛';
+      }
+    }
+    const cells = boardSvg.querySelectorAll('.qsv-cell');
+    cells.forEach(c => {
+      c.setAttribute('stroke', '#e5e5e7');
+      c.setAttribute('stroke-width', '1');
+    });
+    const ev = TRACE[step];
+    if (ev.cell > 0 && (ev.action === 'try' || ev.action === 'block' || ev.action === 'place')) {
+      const stroke = ev.action === 'block' ? '#f5b1a8'
+        : (ev.action === 'place' ? '#a5a5ab' : '#bdb8ff');
+      const target = boardSvg.querySelector(`[data-cell="${ev.cell}"]`);
+      if (target) {
+        target.setAttribute('stroke', stroke);
+        target.setAttribute('stroke-width', '2');
+      }
+    }
+  }
+
+  function renderArrays(step) {
+    const s = TRACE[step].state;
+    const rowsEl = document.getElementById('qsv-rows').children;
+    const resultEl = document.getElementById('qsv-result').children;
+    for (let i = 0; i < N; i++) {
+      rowsEl[i].textContent = s.rows[i] ? 'T' : 'F';
+      rowsEl[i].className = 'qsv-array-cell' + (s.rows[i] ? ' qsv-true' : '');
+      resultEl[i].textContent = s.result[i] > 0 ? s.result[i] : '·';
+      resultEl[i].className = 'qsv-array-cell' + (s.result[i] > 0 ? ' qsv-set' : '');
+    }
+  }
+
+  function renderLog(step) {
+    const ev = TRACE[step];
+    const log = document.getElementById('qsv-log');
+    if (!ev || ev.action === 'init') {
+      log.innerHTML = '<span style="color:#6e6e73;">Ready. Press Step to begin Spin\'s search.</span>';
+      return;
+    }
+    const labels = { try: 'TRY', block: 'BLOCK', place: 'PLACE', backtrack: 'BACKTRACK', solution: 'SOLUTION' };
+    let msg = `<span class="qsv-log-action qsv-log-${ev.action}">${labels[ev.action]}</span>`;
+    if (ev.action === 'try') msg += `Region ${ev.region}: try cell ${ev.cell}`;
+    else if (ev.action === 'block') msg += `Region ${ev.region}, cell ${ev.cell} — <span class="qsv-log-reason">${ev.reason}</span>`;
+    else if (ev.action === 'place') msg += `Region ${ev.region}: queen placed at cell ${ev.cell}`;
+    else if (ev.action === 'backtrack') msg += `Region ${ev.region}: undo cell ${ev.cell}, try next option`;
+    else if (ev.action === 'solution') msg += `Solution found: [${ev.state.result.join(', ')}]`;
+    log.innerHTML = msg;
+  }
+
+  function render(step) {
+    currentStep = Math.max(0, Math.min(TRACE.length - 1, step));
+    renderTree(currentStep);
+    renderBoard(currentStep);
+    renderArrays(currentStep);
+    renderLog(currentStep);
+    document.getElementById('qsv-step-info').textContent = `Step ${currentStep} / ${TRACE.length - 1}`;
+    document.getElementById('qsv-back').disabled = currentStep === 0;
+    document.getElementById('qsv-step').disabled = currentStep === TRACE.length - 1;
+  }
+
+  document.getElementById('qsv-reset').addEventListener('click', () => { render(0); });
+  document.getElementById('qsv-back').addEventListener('click', () => { render(currentStep - 1); });
+  document.getElementById('qsv-step').addEventListener('click', () => { render(currentStep + 1); });
+  document.getElementById('qsv-next-block').addEventListener('click', () => {
+    for (let i = currentStep + 1; i < TRACE.length; i++) {
+      if (TRACE[i].action === 'block') { render(i); return; }
+    }
+  });
+  document.getElementById('qsv-next-solution').addEventListener('click', () => {
+    for (let i = currentStep + 1; i < TRACE.length; i++) {
+      if (TRACE[i].action === 'solution') { render(i); return; }
+    }
+  });
+
+  setupBoard();
+  setupTreeStatic();
+  setupArrays();
+  render(0);
+
+})();
+</script>
+
+</body>
+</html>
