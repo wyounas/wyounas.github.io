@@ -127,6 +127,17 @@ Solution 2 - Queens at cells: [2, 8, 9, 15]:
  .  .  Q  . 
 ```
 
+You can also explore the same idea interactively below, just to get a sense of how Spin steps through the search, backtracks, and finds a solution. Try stepping through the search and watch how invalid branches are blocked and how Spin resumes from an earlier unexplored choice.
+
+ <iframe
+  src="{{ '/assets/widgets/queens-search.html' | relative_url }}"
+  style="width: 90%; height: 920px; border: none;"
+  loading="lazy"
+  title="Spin search visualization">
+</iframe>
+
+ If the interactive does not load, you can open it directly [here]({{ '/assets/widgets/queens-search.html' | relative_url }}).
+
 Now let’s try to solve the puzzle using a model checker, again with the goal of finding all possible solutions, not just one. We'll start with Spin, which uses Promela as its modeling language.
 
 ## Solving the Puzzle Using Spin 
@@ -614,3 +625,4 @@ _Please keep in mind that I’m only human, and there’s a chance this post con
 6. Spin manual, condition statements: [https://spinroot.com/spin/Man/condition.html](https://spinroot.com/spin/Man/condition.html)
 7. Spin manual, _pan_ options including `-E`: [https://spinroot.com/spin/Man/Pan.html](https://spinroot.com/spin/Man/Pan.html)
 8. Spin manual, _if_: [https://spinroot.com/spin/Man/if.html](https://spinroot.com/spin/Man/if.html)
+9. I built the interactive with AI assistance and manually checked the behavior.
