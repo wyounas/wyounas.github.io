@@ -1,12 +1,12 @@
 ---
 layout: post
 title:  "Exploring All Solutions to LinkedIn Queens Puzzle with a SAT Solver and Two Model Checkers"
-date: 2025-10-18
+date: 2026-06-06
 categories: ["model-checking", "puzzles"]
 ---
 
 
-<img loading="lazy" src="{{ site.baseurl }}/images/2025-08-18-linkedin-puzzle/first.png" />
+<img loading="lazy" src="{{ site.baseurl }}/images/2026-06-06-linkedin-puzzle/first.png" />
 
 LinkedIn Queens is a puzzle played on an `n × n` grid with the following rules:
 
@@ -167,7 +167,7 @@ The statement above lets the process move forward only if the condition is true.
 
 The second concept is how nondeterminism and error search work in Spin. Consider the following small program (All Spin code in this post was written using Spin version 6.5.2):
 
-<img loading="lazy" src="{{ site.baseurl }}/images/2025-08-18-linkedin-puzzle/second.png" />
+<img loading="lazy" src="{{ site.baseurl }}/images/2026-06-06-linkedin-puzzle/second.png" />
 
 We wrap our code in a process-like executable unit using the _`proctype`_ keyword in Promela. When we prefix a _`proctype`_ definition with the _`active`_ keyword, we are telling the model checker to automatically start that process when Spin begins execution. 
 
@@ -175,7 +175,7 @@ The _`if`_ statement as written above (starting with the keyword _`if`_ and endi
 
 To further understand how this nondeterminism will play out, below is an automaton in _Figure 1_ that represents the possible transitions for this code (generated using a tool called jSpin [2]):
 
-<img loading="lazy" src="{{ site.baseurl }}/images/2025-08-18-linkedin-puzzle/three.png" />
+<img loading="lazy" src="{{ site.baseurl }}/images/2026-06-06-linkedin-puzzle/three.png" />
 
 _Figure 1_ 
 
@@ -251,7 +251,7 @@ In this configuration:
 We could now imagine a tree with four levels. At level 0, you see all the cells from Region 1. From each of those cells, there are branches leading to every cell in Region 2.
 In the figure, in Region 1, we show a branch going out from cell 1 just to save space. You can imagine similar branches coming from cells 2, 3, and 4 as well, and the same for all cells in level 1 and 2. 
 
-<img loading="lazy" src="{{ site.baseurl }}/images/2025-08-18-linkedin-puzzle/four.png" />
+<img loading="lazy" src="{{ site.baseurl }}/images/2026-06-06-linkedin-puzzle/four.png" />
 
 _Figure 2_ 
 
@@ -260,7 +260,7 @@ Now let’s see what is going on in Figure 2. A queen is first placed in cell 1,
 At that point, we could imagine Spin backtracking. Let’s look at the following illustration to see what happens next. 
 
 
-<img loading="lazy" src="{{ site.baseurl }}/images/2025-08-18-linkedin-puzzle/five.png" />
+<img loading="lazy" src="{{ site.baseurl }}/images/2026-06-06-linkedin-puzzle/five.png" />
 
 _Figure 3_ 
 
@@ -434,7 +434,7 @@ result[3] = 14
 
 Without changing much code, we can extend these ideas to a `9x9` grid. Here is a LinkedIn Queens puzzle by LinkedIn on a day in July 2025:
 
-<img loading="lazy" src="{{ site.baseurl }}/images/2025-08-18-linkedin-puzzle/six.png" />
+<img loading="lazy" src="{{ site.baseurl }}/images/2026-06-06-linkedin-puzzle/six.png" />
 
 [Here is the complete code](https://github.com/wyounas/linkedin_queens/blob/main/queenninebynine.pml) that gives us the solution to this puzzle. When I run it, I find the solution:
 ```
@@ -450,7 +450,7 @@ result[8] = 70
 ```
 
 
-<img loading="lazy" src="{{ site.baseurl }}/images/2025-08-18-linkedin-puzzle/seven.png" />
+<img loading="lazy" src="{{ site.baseurl }}/images/2026-06-06-linkedin-puzzle/seven.png" />
 
 I took the original image and, based on the values in the _`result`_ array, placed queens (marked as "Q" above) in the image. It looks like a valid solution to the puzzle that satisfies all the constraints. (Please ignore the small ‘x’ in the image above, it was just a placeholder in the original image.)
 
@@ -620,7 +620,7 @@ _Please keep in mind that I’m only human, and there’s a chance this post con
 2. jSpin: [https://github.com/motib/jspin](https://github.com/motib/jspin)
 3. Ben Ari's book introduced me to nondeterminism in Spin. 
 [Ben-Ari, M. (2008). Principles of the Spin model checker. Springer.](https://link.springer.com/book/10.1007/978-1-84628-770-1)
-4. Repository containing all code in this post: [https://github.com/wyounas/linkedin_queens](https://github.com/wyounas/linkedin_queens)
+4. Repository containing all code in this post: [https://github.com/wyounas/model-checking/blob/main/puzzles/linkedin_queens](https://github.com/wyounas/model-checking/blob/main/puzzles/linkedin_queens)
 5. Spin manual, _assert_: [https://spinroot.com/spin/Man/assert.html](https://spinroot.com/spin/Man/assert.html)
 6. Spin manual, condition statements: [https://spinroot.com/spin/Man/condition.html](https://spinroot.com/spin/Man/condition.html)
 7. Spin manual, _pan_ options including `-E`: [https://spinroot.com/spin/Man/Pan.html](https://spinroot.com/spin/Man/Pan.html)
