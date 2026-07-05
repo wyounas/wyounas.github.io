@@ -1,6 +1,6 @@
 ---
 layout: post
-title:  "Exploring All Solutions to LinkedIn Queens Puzzle with a SAT Solver and Two Model Checkers"
+title:  "Finding All Solutions to LinkedIn Queens with a SAT Solver and Model Checkers"
 date: 2026-06-06
 categories: ["model-checking", "puzzles"]
 ---
@@ -14,7 +14,7 @@ LinkedIn Queens is a puzzle played on an `n × n` grid with the following rules:
 - Each row, column, and colored region must contain exactly one queen.
 - No two queens may be adjacent, including diagonally. However, diagonals at a distance are allowed.
 
-In this post, we find all solutions, not just one, using a Python‑based SAT solver and two model checkers (Spin and FizzBee). To keep things simple, we’ll solve the puzzle for a `4x4` grid using the SAT solver, but we will solve it both for `4x4` and `9x9` using model checkers. 
+In this post, we look for all solutions, not just one, using a Python-based SAT solver and Spin, a model checker. We then model the same puzzle in FizzBee, another model checker, where the default output gives a valid counterexample rather than listing every solution. To keep things simple, we will solve the puzzle for a `4x4` grid using the SAT solver, but we will solve it both for `4x4` and `9x9` using model checkers. 
 
 The goal here is to explore how various computational approaches can tackle the same problem. For one, I believe there is a touch of elegance in how SAT solvers can sometimes reformulate complex problems. I also believe that model checkers, for instance, aren't just powerful tools for ensuring correctness, but also a great way to learn about nondeterminism. 
 
