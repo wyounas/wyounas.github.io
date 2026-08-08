@@ -616,8 +616,8 @@ _Please keep in mind that I’m only human, and there’s a chance this post con
 6. Spin manual, condition statements: [https://spinroot.com/spin/Man/condition.html](https://spinroot.com/spin/Man/condition.html)
 7. Spin manual, _pan_ options including `-E`: [https://spinroot.com/spin/Man/Pan.html](https://spinroot.com/spin/Man/Pan.html)
 8. Spin manual, _if_: [https://spinroot.com/spin/Man/if.html](https://spinroot.com/spin/Man/if.html)
- 
+
 
 ## Footnotes
 
-[^queens-search]: You can open the [interactive directly here]({{ '/assets/widgets/queens-search.html' | relative_url }}). I built this with AI assistance and manually checked the behavior.
+[^queens-search]: You can open the [interactive directly here]({{ '/assets/widgets/queens-search.html' | relative_url }}). I built the interactive with AI assistance and manually checked the behavior.
