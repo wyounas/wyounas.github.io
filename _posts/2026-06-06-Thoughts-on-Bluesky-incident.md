@@ -65,6 +65,12 @@ We have set a small work limit and the System submits more work than the limit. 
 
 ### How the model models port exhasution 
 
+The model considers those ports in use that are any of these statuses: active, idle, or in TIME_WAIT state. The model also limits ports and when ports used are more than that limit, the model triggers port exhaustion (modelling it by setting a port_exhasution boolean variable basically). When the 'Service' starts, it tries to find an idle connection. If there is no idle connection and ports in use are still less than the ports limit, it opens a new connection, and mark it as an active port. When URI handler completes work, it moves the port from active to idle if the idle pool has room; otherwise it closes the connection and put it in TIME_WAIT state. Port exhaustion occurs when new owork needs a fresh connection, but no idle connection exists and all modeled ports are unavailable.
+
+### How the model simulates load 
+
+Model simulates load crossing a given threshold in two ways. First, by modelling an external shock in the URI handler. Second, when ports are exhausted. There is a correctness property that looks for it and when you run the model to validate this property, it would fail because the model does not recover form it. 
+
 
 
 Let's assume that the work of the "Service" is just to produce work so that's simple. 
