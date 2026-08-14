@@ -7,31 +7,65 @@ categories: ["model-checking", "incidents"]
 
 Jim Calabro published a great post-mortem on Bluesky's April-2026 incident. I learned from this good incident report. 
 
-The root cause was a RPC handler with unbounded concurrency. The report says:
+The root cause was a RPC handler with unbounded concurrency. The RPC handler, according to the report:
+
+> This particular RPC (`GetPostRecord`) takes a batch of post URIs, and looks them all in memcached, then scylla upon cache miss. What I had missed is that we deployed a new internal service last week that sent less than three `GetPostRecord` requests per second, but it did sometimes send batches of 15-20 thousand URIs at a time. 
+
+The report also says:
 
 > Every RPC handler in the data plan does bounded concurrency (i.e. errgroup.SetLimit). However, this endpoint did not! It was the only endpoint in the entire system that was missing it. 
 
-This caused saturation as system ran out of resources. And it later cascaded into a series of failures; RPC handler written in Go had a lot of log writes which caused blocking system calls, and that led the Go runtime to spawn many more OS threads, which burdeneed the garbage collector and since they had aggressive memory limits their system OOM'ed often (foot note what oom is). The saturation plus the cascades turned metastable and kept the system unstable for a couple of days. 
+> This means that we'd launch 15-20 thousand goroutines for the request, slam the daylights out of memcached by dialing a tone of connections, then close and return them to OS since our max idle conn pool size was 1000. They would build up in the TCP_TIME_WAIT state, and exhaust all available ports. 
 
-In hindsight things look easy and it's easy to fix the past sitting in the present. But I want to look at it from educational standpoint and ask myself, what can I learn from this? What can I learn to better reason while developing such systems in the future? So my goal is not to suggest what could have prevented this incident but to try to learn from it to reason better about such systems and issues in future. 
+This all later cascaded into a series of failures; RPC handler written in Go had a lot of log writes which caused blocking system calls, and that led the Go runtime to spawn many more OS threads, that in turn burdeneed the garbage collector and since they had aggressive memory limits their system OOM'ed often (foot note what oom is). The saturation and the cascades kept the system unstable for a couple of days. 
 
-I have worked on systems that caused saturation and cascaded failures. These failures humble the engineers and you almost always tend to ask how could I prevent it from happening again? One practical way which has proven effective, for teams I have been part of, when reasoning about designs and correctness is to build a model of the system being designed using a model checker. We try to wrtie correctness properties of the system first and then we write a model and try to ensure using the model checker that the correctness properties pass and not fail in all reachable system states. We've used Spin as a model checker (which uses Promela as specification language in which models are written); I find it particularly relevant when teams use Go because Spin/Promela share similar features (e.g. buffered channels, unbuffered channels, etc), although teams could benefit from other model checkers like TLA+ as well.
+In hindsight it's easy to fix the past sitting in the present. And that's not the purpose of this post. Neither to suggest what could have prevented it. I want to look at it from educational standpoint and ask myself, what can I learn from this to better reason while developing such systems in the future.
 
-One can argue that during the implementation, after having created such models, bugs come up implementation so what's the point of writing a model? The reason why creating a model is helpful because it helps in structuring your thinking. You could show this structure to your colleagues and get feedback to improve your ideas. You could reflect on this structure with regards to implementation and could come up with a roadmap and potential issues you might come across. Also, and when you give structure to your thinking you could still leave some gaps but could also uncover many gaps as well; you uncover more than you leave in my experience. A newly constructed house or a long importnat bridge may have some shortcomings but those shortcomings should not be the reason to stop making maps, because for the purpose they serve their benefits outweigh other costs.
+One possible learning path from this system is to first model the system and try to reproduce the problem. It's not easy to learn from failure you cannot construct. Reproducing a failure makes it observable and you can learn a lot from an observable failure as you internalise what you must avoid in that context. 
 
-Reading the Bluesky's incident report, it's the unbounded concurrency in one of the new RPC handlers that triggered the incident. The RPC handler would launch 15-20 thousand goroutines for each request, and each would then do a chain of events then would make the system stable e.g. by exhuasting all availble ports, spawning more OS threads than the usual, leading to extra burden on the garbage collector, eventually leading to out of memory (OOM) errors, what made it worse was to not being able to recover from OOMs because existing connections were stuck even after restarts. The system got into a metastable state and could not recover from it. 
+Writing a model in a model checker can also force you to reason about correctness properties of the system. A model can also check the correctness of the system in all possible system states and this can increase the confidence of the team. It's a fair counter point that a model and system implementation can diverge. As AI is getting better at code, we can write a model and then check with AI that the implementation adheres to the model before it makes it to production. This way, a model can be embedded in the development process even if it is written after the implementation or after an incident. It helps you correct your wrong assumptions for correct future implementation behavior. A model is not an artifact that possess information about danger but also it helps design and create a system capable of responding to that danger. 
 
-The incident report also mentioned that every RPC handler had bounded concurrency configured except this new RPC handler. Couple this with the fact that the bounded concurrency is the root cause, it emerges as a core correctness property of RPC handlers, a property which we must enforce in all reachable system states. 
-
-The second correctness property that emerges is the ability of a system to be able to recover from an overloaded state. The system should be able to always recover from an overloaded state to an eventual stable state. 
-
-So we can write a model which can abstract away the Bluesky scenario and ensure that the following two correctness properties hold in every reachable state of the model:
-
-a. The system should guard against unboudned concurrency. The available amount of work should be less than a threshold. 
-b. Always, if a system goes into an overloaded state, it should eventual get to a stable state. 
+From the incident report, we can extract bounded concurrency as a key correctnes property of the system in question. Port exhaustion was another problem that emerged in the incident and so was excessive logging. Let's model the system in which can reproduce unboudned concurrency and port exhaustion, excessive logging is something which can be added to it later. The model would also show that the modelled system could not recover on its own. 
 
 
-In the model, first, we can write a "Service" which produces work and also write a "URI-Handler" that processes that work. 
+We try to wrtie correctness properties of the system first and then we write a model and try to ensure using the model checker that the correctness properties pass. We've used Spin as a model checker (which uses Promela as specification language in which models are written); I find it particularly relevant when teams use Go because Spin/Promela share similar features (e.g. channels, etc), although teams could benefit from other model checkers like TLA+ as well.
+
+
+Let's see how the model models boudned concurrency, port exhaustion, and recovery from failure. First, let's look at high level design of the model. 
+
+### High level design of the model 
+
+The model has two basic components, a 'Service', and a 'URI handler'. The service produces work and service consumes it. 
+
+The model also has three correctness propreties that must hold in all reachable states:
+
+- Concurrency remains bounded. 
+- Used ports remain within a limit so as not to trigger port exhaustion. 
+- System recovers from stress. 
+
+'Sevice' produces work and sends it to the 'URI handler' on a channel and the handler consuems it. The number of work items in flight, system load, number of ports used (those that are either idle, active, or stuck in 'TIME_WAIT') are tracked in variables. 
+
+#### How the Service works 
+
+The 'Service' process a 'batch' and once the work items in flight tend to zero it processes the next badge. The batch size and work limits are intentionally kept small to avoid state space explosion. Since we're trying to reproduce the issues, we don't check whether work in flight is less than the work limit and this helps us reproduce the unbounded concurrency issue. The correctness property that checks bounded concurrency is violated when work in flight is more than the work limit and thus the issue is reproduced.  
+
+For each work item, the 'Service' tries one of three connection paths; reuse an idle connection, opens a new one if ports are available, or fails the dial if no port is available (). When it fails the dial the model triggers the port exhaustion. Again, since we've specified this as a correctness property, it catches the port exhasution bug as soon as the model is in that state. 
+
+#### How the URI handler works 
+
+The URI handler receives work (on a channel). After receiving it, it marks the work complete. It then models the fate of the connection. If the idle pool has room, the connection becomes reusable. If idle room is full, the connection closes and goes in a TIME_WAIT state. 
+
+The URI handler also models an external shock event. The state of the shock reflects in the model system by setting a variable. 
+
+The handler also models the recovery bug in such a manner that load is not shedded and the load remains (CHECK). 
+
+### How the model models bounded concurrency
+
+We have set a small work limit and the System submits more work than the limit. URI handler does not care about a work limit and keeps processing work even if it is over the work limit. We have a system correctness property defined which ensures that cocurrency remains bounded and work remains with a limit. As soon as we submit more work and system has to handle more work than the limit, this correctness property is violated. And when we run the model and ask the model checker to check this property, we see the violation. 
+
+### How the model models port exhasution 
+
+
 
 Let's assume that the work of the "Service" is just to produce work so that's simple. 
 
