@@ -71,6 +71,53 @@ The model considers those ports in use that are any of these statuses: active, i
 
 Model simulates load crossing a given threshold in two ways. First, by modelling an external shock in the URI handler. Second, when ports are exhausted. There is a correctness property that looks for it and when you run the model to validate this property, it would fail because the model does not recover form it. 
 
+### How the model checks for correctness 
+
+The model uses both assertions and correctness properties. 
+
+The following assertion ensures that ports in use are never more than the allowed limit:
+
+```assert(ports_used <= port_limit)```
+
+In the model, we check for correctnes using LTL (Linear Temporal Logic) properties. LTL correctness properties say what must be true as a program runs over time. For example, a lock is never held by two processes or every reqquest eventually gets a reply. For one, we could say `[] p` which translates to `always p holds` or `<> p` which translates to `eventually p holds` ([] denotes always, <> denotes eventually, etc). SPIN checks all possible executions of your model and tries to find a counterexample that breaks the property. 
+
+In our model we define three LTL properties:
+
+- `ltl p1 { [] (work_inflight <= work_limit) }`: Always: work in flight is at or below the work limit. That is, work in flight must never exceed the work limit. 
+- `ltl p2 { [] (loaded -> <> !loaded) }`: Always: if the model becomes loaded, it eventually becomes not loaded. Whenever the model becomes loaded, it must eventually become not loaded. 
+- `ltl p3 { [] (!port_exhausted) }`: Always: ports are not exhausted. It's another way of saying, ports must never be exhauseted. 
+
+Let's see how the model reproduces the bouned concurrency bug, where work in flight exceeds the work limit. First, let's ask Spin to take our model, turn it into a model checking program and compile it:
+
+```
+$ $spin -a model.pml
+$ $cc -O2 -o pan pan.c
+```
+We then try to run it so it finds a violation of LTL property `p1` (which checks for bounded concurrency):
+```
+$ ./pan -a -N p1
+```
+
+And it finds a violation, following is the truncated output:
+```
+pin: _spin_nvr.tmp:3, Error: assertion violated
+spin: text of failed assertion: assert(!(!((work_inflight<=3))))
+Never claim moves to line 3     [assert(!(!((work_inflight<=3))))]
+spin: trail ends after 111 steps
+#processes: 2
+                queue 1 (work_ch): [3][4][5]
+                work_inflight = 4
+                load = 5
+                shocked = 1
+                active_ports = 4
+                idle_ports = 0
+                time_wait_ports = 0
+                port_exhausted = 0
+```
+
+At the bottom we've state of varibles and when the assertion was violated work_inflight was 4 which is more than the work limit 3, hence the violation. 
+
+We could similarly run and check violations of other LTL properties. 
 
 
 Let's assume that the work of the "Service" is just to produce work so that's simple. 
