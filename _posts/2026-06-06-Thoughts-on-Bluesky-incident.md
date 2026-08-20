@@ -100,10 +100,7 @@ $ ./pan -a -N p1
 
 And it finds a violation, following is the truncated output:
 ```
-pin: _spin_nvr.tmp:3, Error: assertion violated
-spin: text of failed assertion: assert(!(!((work_inflight<=3))))
-Never claim moves to line 3     [assert(!(!((work_inflight<=3))))]
-spin: trail ends after 111 steps
+spin: trail ends after 91 steps
 #processes: 2
                 queue 1 (work_ch): [3][4][5]
                 work_inflight = 4
@@ -117,29 +114,26 @@ spin: trail ends after 111 steps
 
 At the bottom we've state of varibles and when the assertion was violated work_inflight was 4 which is more than the work limit 3, hence the violation. 
 
-We could similarly run and check violations of other LTL properties. 
-
-
-Let's assume that the work of the "Service" is just to produce work so that's simple. 
-
-The "URI-Handler" receives work and consume it. It also once receives a "shock" and in that case its loaded is increased up to its threshold. 
-
-The model also specifies two correctness properties as:
-
-- [] { work_inglifht <= work_limit }
-- [] {loaded -> <> !loaded}
-
-The first ensures that work inflight should always be less than a given limit. Second ensures that always, if the system is loaded then eventually it sheds it load. The symbol `[]` denotes always, `->` an implication, `<>` means eventually, and `!` represents a not in Spin/Promela. 
-
-Here is the code of this simplified model. 
-
-```promela 
+We could similarly run and check violations of other LTL properties. When I try to check the 'port exhasution' correctness property, I get an error and this trail:
+```
+spin: trail ends after 87 steps
+#processes: 2
+                queue 1 (work_ch): [1][2][3][4]
+                work_inflight = 4
+                load = 5
+                shocked = 1
+                active_ports = 4
+                idle_ports = 0
+                time_wait_ports = 2
+                port_exhausted = 1
 ```
 
+We can see that ports used are 6 - ctive_ports plus idle_ports plus time_wait_ports equals six - which is at the port limit of 6.
 
+If I would like to see whether the load shredding correctness property holds, when I run it I see it does not and I see this in trail that once the system is under load it does not recover from it. 
 
+The commands to run the model with correctnes properties and to view the trail are given in comments in the model's code. In the repository, you will also find a model called model_fixed.pml in which the bugs are fixed and when you run correctness properties in it they hold. 
 
+So why is the exercise useful? I think it's good for learning. I learned about some TCP mechanisms which I was not aware of. More importantly, if a team models such incidents, they can embed this learning in the design stage of their development. Such models could also be useful for verification purposes. 
 
- address the objection of model vs implmemnentation
-
-While reading the report, and in particular the above quoted excerpt, my observation is that there is a underlying system correctness property (at least for RPC handlers) and that is, we ensure that concurrency remains bounded. 
+If your team is writing code manually, you could check the implementation against the model to ensure that your implementation has the correctness properties as inavriants in your code. And if your team is using AI, you could use the model as a validation artifact to ensure your implementation not only implements those invariants but it is also faithful to the model. And since your model is correct in all reachable states and interleavings and it holds system correctness properties, if you validate your implementation against against the model, there is a reasonable chance your implementation will be correct or at least, as has been the case in my experience, it will catch many issues than it would not without the model. 
