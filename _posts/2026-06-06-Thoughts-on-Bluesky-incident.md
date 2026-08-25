@@ -5,7 +5,7 @@ date: 2026-06-06
 categories: ["model-checking", "incidents"]
 ---
 
-Jim Calabro published a great post-mortem on Bluesky's April-2026 incident. I learned from this good incident report. 
+Jim Calabro published a great post-mortem on Bluesky's April-2026 incident. I learned from reading this good incident report. 
 
 The root cause was a RPC handler with unbounded concurrency. The RPC handler, according to the report:
 
@@ -112,7 +112,15 @@ spin: trail ends after 91 steps
                 port_exhausted = 0
 ```
 
-At the bottom we've state of varibles and when the assertion was violated work_inflight was 4 which is more than the work limit 3, hence the violation. 
+At the bottom we've state of varibles and when the assertion was violated work_inflight was 4 which is more than the work limit 3, hence the violation.We could see the steps that led to this invariant's violation in the image below:
+
+  <figure>
+    <img src="{{ '/images/2026-08-24-bluesky-incident/p1_sequence_short.svg' | relative_url }}"
+         alt="Sequence diagram showing work_inflight increasing to 4 and violating the P1 invariant">
+    <figcaption>
+      The critical interleaving: item 2 remains in flight while Service produces items 3, 4, and 5.
+    </figcaption>
+  </figure>
 
 We could similarly run and check violations of other LTL properties. When I try to check the 'port exhasution' correctness property, I get an error and this trail:
 ```
@@ -128,12 +136,17 @@ spin: trail ends after 87 steps
                 port_exhausted = 1
 ```
 
-We can see that ports used are 6 - ctive_ports plus idle_ports plus time_wait_ports equals six - which is at the port limit of 6.
+We can see that ports used are 6, that is, active_ports plus idle_ports plus time_wait_ports equals six - which is at the port limit of 6.
 
 If I would like to see whether the load shredding correctness property holds, when I run it I see it does not and I see this in trail that once the system is under load it does not recover from it. 
 
-The commands to run the model with correctnes properties and to view the trail are given in comments in the model's code. In the repository, you will also find a model called model_fixed.pml in which the bugs are fixed and when you run correctness properties in it they hold. 
+The commands to run the model with correctnes properties and to view the trail are given in comments in the model's code. In the repository, you will also find a model called model_fixed.pml [1, 2] in which the bugs are fixed and when you run correctness properties in it they hold. 
 
-So why is the exercise useful? I think it's good for learning. I learned about some TCP mechanisms which I was not aware of. More importantly, if a team models such incidents, they can embed this learning in the design stage of their development. Such models could also be useful for verification purposes. 
+So why is the exercise useful? I think it's good for learning. I learned more about TCP so hopefully I will avoid some future mistkaes. More importantly, if a team models such incidents, they can embed this learning in the design stage of their development. Such models, when run with model checkers, could also be useful for verification purposes. 
 
-If your team is writing code manually, you could check the implementation against the model to ensure that your implementation has the correctness properties as inavriants in your code. And if your team is using AI, you could use the model as a validation artifact to ensure your implementation not only implements those invariants but it is also faithful to the model. And since your model is correct in all reachable states and interleavings and it holds system correctness properties, if you validate your implementation against against the model, there is a reasonable chance your implementation will be correct or at least, as has been the case in my experience, it will catch many issues than it would not without the model. 
+If your team is writing code manually, you could check the implementation against the model to ensure that your implementation has the correctness properties as inavriants in your code. And if your team is using AI, you could use the model as a validation artifact to ensure your implementation not only implements those invariants but it is also faithful to the model. If you have a model which is correct in all reachable states and interleavings and if you validate your implementation against against this model then at least, as has been the case in my experience, it will catch many issues than it would not without the model. 
+
+
+# References 
+
+1. 
