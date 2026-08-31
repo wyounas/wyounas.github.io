@@ -7,7 +7,7 @@ categories: ["model-checking", "incidents"]
 
 Jim Calabro published a great post-mortem on Bluesky's April-2026 incident. I learned from reading this good incident report. 
 
-The root cause was a RPC handler with unbounded concurrency. The RPC handler, according to the report:
+The root cause was a RPC handler with unbounded concurrency. According to the report:
 
 > This particular RPC (`GetPostRecord`) takes a batch of post URIs, and looks them all in memcached, then scylla upon cache miss. What I had missed is that we deployed a new internal service last week that sent less than three `GetPostRecord` requests per second, but it did sometimes send batches of 15-20 thousand URIs at a time. 
 
@@ -19,16 +19,18 @@ The report also says:
 
 This all later cascaded into a series of failures; RPC handler written in Go had a lot of log writes which caused blocking system calls, and that led the Go runtime to spawn many more OS threads, that in turn burdeneed the garbage collector and since they had aggressive memory limits their system OOM'ed often (foot note what oom is). The saturation and the cascades kept the system unstable for a couple of days. 
 
-In hindsight it's easy to fix the past sitting in the present. And that's not the purpose of this post. Neither to suggest what could have prevented it. I want to look at it from educational standpoint and ask myself, what can I learn from this to better reason while developing such systems in the future.
+In hindsight it's easy to fix the past sitting in the present. And that's not the purpose of this post. Neither to suggest what could have prevented it. I want to look at it from educational standpoint and ask myself, what can I learn from this to avoid similar mistakes while developing such systems in the future.
 
 One possible learning path from this system is to first model the system and try to reproduce the problem. It's not easy to learn from failure you cannot construct. Reproducing a failure makes it observable and you can learn a lot from an observable failure as you internalise what you must avoid in that context. 
 
-Writing a model in a model checker can also force you to reason about correctness properties of the system. A model can also check the correctness of the system in all possible system states and this can increase the confidence of the team. It's a fair counter point that a model and system implementation can diverge. As AI is getting better at code, we can write a model and then check with AI that the implementation adheres to the model before it makes it to production. This way, a model can be embedded in the development process even if it is written after the implementation or after an incident. It helps you correct your wrong assumptions for correct future implementation behavior. A model is not an artifact that possess information about danger but also it helps design and create a system capable of responding to that danger. 
+Writing a model in a model checker can also force you to reason about correctness of the system. You can check the correctness of your system by specifying invariants that must hold in all reachable states of your system. To do that, you write a model of your system and specify invariants and then let a model checker validate that your inavriants hold in all reachable states. As you develop complex systems, doing this can greatly increase team's confidence in the correctness of the system. 
 
-From the incident report, we can extract bounded concurrency as a key correctnes property of the system in question. Port exhaustion was another problem that emerged in the incident and so was excessive logging. Let's model the system in which can reproduce unboudned concurrency and port exhaustion, excessive logging is something which can be added to it later. The model would also show that the modelled system could not recover on its own. 
+It's a fair counter point that a model and system implementation can diverge, so why model? If you write the model of your system, that you've to implement, in which invariants hold, you've already done enough thinking to minimise the implemnetation errors later. Modelling the system, coming up with invariants, and then writing a model such that invariants hold in all interleavings and states require clear thinking. Moreover, as AI is getting better at code, we can write a model and then check with AI that the implementation adheres to the model before it makes it to production. This way, a model can be embedded in the development process even if it is written after the implementation or after an incident. It helps you correct your wrong assumptions for correct future implementation behavior. A model is not just a stylistic artifact but it can help create correct design and an implementation. 
+
+From the incident report, we can extract bounded concurrency as a key correctnes property of the system in question. Port exhaustion was another problem that emerged in the incident and so was excessive logging. Let's model the system so it can reproduce unboudned concurrency and port exhaustion and then address those; excessive logging is something which can be added to it later. The model would also show that the modelled system could not recover on its own. 
 
 
-We try to wrtie correctness properties of the system first and then we write a model and try to ensure using the model checker that the correctness properties pass. We've used Spin as a model checker (which uses Promela as specification language in which models are written); I find it particularly relevant when teams use Go because Spin/Promela share similar features (e.g. channels, etc), although teams could benefit from other model checkers like TLA+ as well.
+We try to wrtie correctness properties of the system first and then we write a model and try to ensure using the model checker that the correctness properties pass. We've used Spin as a model checker (which uses Promela as specification language in which models are written); I find Spin particularly relevant for teams that use Go language because it shares some share similar features Spin (e.g. channels, etc), although teams could benefit from other model checkers like TLA+, P, FizzBee as well.
 
 
 Let's see how the model models boudned concurrency, port exhaustion, and recovery from failure. First, let's look at high level design of the model. 
@@ -43,17 +45,17 @@ The model also has three correctness propreties that must hold in all reachable 
 - Used ports remain within a limit so as not to trigger port exhaustion. 
 - System recovers from stress. 
 
-'Sevice' produces work and sends it to the 'URI handler' on a channel and the handler consuems it. The number of work items in flight, system load, number of ports used (those that are either idle, active, or stuck in 'TIME_WAIT') are tracked in variables. 
+'Sevice' produces work and sends it to the 'URI handler' on a channel and the handler consumes it. For the system's state, the number of work items in flight, system load, number of ports used (those that are either idle, active, or stuck in 'TIME_WAIT') are tracked in variables. 
 
-#### How the Service works 
+### How the Service works 
 
-The 'Service' process a 'batch' and once the work items in flight tend to zero it processes the next badge. The batch size and work limits are intentionally kept small to avoid state space explosion. Since we're trying to reproduce the issues, we don't check whether work in flight is less than the work limit and this helps us reproduce the unbounded concurrency issue. The correctness property that checks bounded concurrency is violated when work in flight is more than the work limit and thus the issue is reproduced.  
+The 'Service' process a 'batch' and once the work items in flight tend to zero it processes the next badge. The batch size and work limits are intentionally kept small to avoid state space explosion. Since we're trying to reproduce the issues, we don't check whether work in flight is less than the work limit and this helps us reproduce the unbounded concurrency issue. The correctness property that checks bounded concurrency is violated when work in flight is more than the work limit and thus the issue is reproduced. (The model code linked below has many comments and among other things it points out where the problem occurs and how to fix it.) There is some more detail about it below. 
 
-For each work item, the 'Service' tries one of three connection paths; reuse an idle connection, opens a new one if ports are available, or fails the dial if no port is available (). When it fails the dial the model triggers the port exhaustion. Again, since we've specified this as a correctness property, it catches the port exhasution bug as soon as the model is in that state. 
+For each work item, the 'Service' tries one of three connection paths; reuse an idle connection, opens a new one if ports are available, or fails the dial if no port is available. When it fails the dial the model triggers the port exhaustion. Again, since we've specified this as a correctness property, it catches the port exhasution bug as soon as the model is in that state. 
 
 #### How the URI handler works 
 
-The URI handler receives work (on a channel). After receiving it, it marks the work complete. It then models the fate of the connection. If the idle pool has room, the connection becomes reusable. If idle room is full, the connection closes and goes in a TIME_WAIT state. 
+The URI handler receives work on a channel (WHAT?). After receiving it, it marks the work complete. It then models the fate of the connection. If the idle pool has room, the connection becomes reusable. If idle room is full, the connection closes and goes in a TIME_WAIT state. 
 
 The URI handler also models an external shock event. The state of the shock reflects in the model system by setting a variable. 
 
@@ -61,7 +63,7 @@ The handler also models the recovery bug in such a manner that load is not shedd
 
 ### How the model models bounded concurrency
 
-We have set a small work limit and the System submits more work than the limit. URI handler does not care about a work limit and keeps processing work even if it is over the work limit. We have a system correctness property defined which ensures that cocurrency remains bounded and work remains with a limit. As soon as we submit more work and system has to handle more work than the limit, this correctness property is violated. And when we run the model and ask the model checker to check this property, we see the violation. 
+We have set a small work limit and the 'System' submits more work than the limit. URI handler does not care about a work limit and keeps processing work even if it is over the work limit. We have a system correctness property which ensures that cocurrency remains bounded and work remains with a limit. As soon as we submit more work and system has to handle more work than the limit, this correctness property is violated. And when we run the model and ask the model checker to check this property, we see the violation. We explain this more below, including a visualisation showing precisely how we're able to reproduce the problem using our model. 
 
 ### How the model models port exhasution 
 
@@ -73,19 +75,13 @@ Model simulates load crossing a given threshold in two ways. First, by modelling
 
 ### How the model checks for correctness 
 
-The model uses both assertions and correctness properties. 
-
-The following assertion ensures that ports in use are never more than the allowed limit:
-
-```assert(ports_used <= port_limit)```
-
-In the model, we check for correctnes using LTL (Linear Temporal Logic) properties. LTL correctness properties say what must be true as a program runs over time. For example, a lock is never held by two processes or every reqquest eventually gets a reply. For one, we could say `[] p` which translates to `always p holds` or `<> p` which translates to `eventually p holds` ([] denotes always, <> denotes eventually, etc). SPIN checks all possible executions of your model and tries to find a counterexample that breaks the property. 
+In the model, we check for correctnes using LTL (Linear Temporal Logic) properties. LTL correctness properties say what must be true as a program runs over time. For example, a lock is never held by two processes or every reqquest eventually gets a reply. For one, we could say `'[] p'` which translates to `'always p holds'` or `'<> p'` which translates to `'eventually p holds'` ([] denotes always, <> denotes eventually, etc). SPIN checks all possible executions of your model and tries to find a counterexample that breaks the property. 
 
 In our model we define three LTL properties:
 
-- `ltl p1 { [] (work_inflight <= work_limit) }`: Always: work in flight is at or below the work limit. That is, work in flight must never exceed the work limit. 
+- `ltl p1 { [] (work_inflight <= work_limit) }`: Always: work in flight is at or below the work limit. That is, work in flight must never exceed the work limit. That is the bounded concurrency check. 
 - `ltl p2 { [] (loaded -> <> !loaded) }`: Always: if the model becomes loaded, it eventually becomes not loaded. Whenever the model becomes loaded, it must eventually become not loaded. 
-- `ltl p3 { [] (!port_exhausted) }`: Always: ports are not exhausted. It's another way of saying, ports must never be exhauseted. 
+- `ltl p3 { [] (!port_exhausted) }`: Always: ports are not exhausted. Taht is, ports must never be exhauseted. 
 
 Let's see how the model reproduces the bouned concurrency bug, where work in flight exceeds the work limit. First, let's ask Spin to take our model, turn it into a model checking program and compile it:
 
@@ -142,7 +138,7 @@ If I would like to see whether the load shredding correctness property holds, wh
 
 The commands to run the model with correctnes properties and to view the trail are given in comments in the model's code. In the repository, you will also find a model called model_fixed.pml [1, 2] in which the bugs are fixed and when you run correctness properties in it they hold. 
 
-So why is the exercise useful? I think it's good for learning. I learned more about TCP so hopefully I will avoid some future mistkaes. More importantly, if a team models such incidents, they can embed this learning in the design stage of their development. Such models, when run with model checkers, could also be useful for verification purposes. 
+So why is the exercise useful? I think it's good for learning. I learned more about TCP so hopefully I will avoid some future mistkaes. More importantly, if a team models such incidents, they can embed this learning in the design stage of their development. Such models, when run with model checkers, could also be useful for verification purposes and help ship sytems that work. Not to say they always work and never break; sometimes they may fail but you learn from your mistakes and do more verification and such verification can help make your systems more robust, more resilient. 
 
 If your team is writing code manually, you could check the implementation against the model to ensure that your implementation has the correctness properties as inavriants in your code. And if your team is using AI, you could use the model as a validation artifact to ensure your implementation not only implements those invariants but it is also faithful to the model. If you have a model which is correct in all reachable states and interleavings and if you validate your implementation against against this model then at least, as has been the case in my experience, it will catch many issues than it would not without the model. 
 
