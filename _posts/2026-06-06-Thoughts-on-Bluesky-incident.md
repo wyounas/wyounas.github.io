@@ -48,7 +48,68 @@ The model also has three correctness properties that must hold in all reachable 
 
 ### How the Service works 
 
-`Service` starts a new batch only after all in-flight work from the previous batch has completed. The batch size and work limits are intentionally kept small to avoid state space explosion. Since we're trying to reproduce the issues, we don't check whether work in flight is less than the work limit and this helps us reproduce the unbounded concurrency issue. The correctness property that checks bounded concurrency is violated when work in flight is more than the work limit and thus the issue is reproduced. (The model code linked below has many comments and among other things it points out areas where the problem occurs and how to fix it.) There is some more detail about it below. 
+`Service` starts a new batch only after all in-flight work from the previous batch has completed. The batch size and work limits are intentionally kept small to avoid state space explosion. Since we're trying to reproduce the issues, we don't check whether work in flight is less than the work limit and this helps us reproduce the unbounded concurrency issue. 
+
+The `Service` models its work by processing three rounds of requests in a loop. In each round, it could three paths:
+  - If idle ports are available, it uses an idle port and produces a work item.
+  - If there is no idle port but there is an available port, it uses it and produces a work item. 
+  - If tehre is neither an idle port, nor any port available, it marks ports as exhausted. 
+
+Here is a rough code sketch, with mostly pseudocode mixed with some Spin/Promela concepts. Please note that :: are option sequences in a do loop in Promela. The first statement in option sequence is called a guard. An option sequence is executed if its guard is true. If more than guard is true at the same time, then one is selcted non-deterministically :
+
+```Promela
+Service(){
+  
+  do 
+    :: if all rounds completed, break;
+    :: if all rounds not completed, increment round;
+    :: if still processing rounds 
+      :: if idle port available then use it and produce item 
+      :: if no idle port available but port available, use it and produce item 
+      :: if no port available, mark port exhasution as true 
+    
+    assert (ports-used <= port-limit)
+  od // do ends
+}
+
+The `Service` process runs a small version of the workload. It processes two request waves. Each wave has a few work items. These numbers are intentionally tiny; the real system had much larger batches, but small numbers make the counterexample easier to read. 
+
+The important bug is that the buggy model does not check `work_inflight < work_limit` before starting more work. So `Service` can keep launching items from the batch even when the intended concurrency limit has already been reached.
+
+For each work item, `Service` makes one connection decision:
+  - If an idle pooled connection exists, reuse it.
+  - If no idle connection exists but a port is free, open a new connection.
+  - If no idle connection exists and no port is free, record a failed dial by setting `port_exhausted = true`.
+
+  Here is the rough shape of the model. In Promela, `::` marks one possible branch in a `do` loop or an `if` choice. The first part of the branch is the guard. If the guard is true, that branch can run. If more than one branch can run, Spin selects one non-deterministically. `->` is a statemetn separator.:
+
+  ```text
+  Service() {
+    do
+    :: all rounds are done ->
+         break
+
+    :: current batch is done and no work is in flight ->
+         start the next round
+
+    :: current batch still has work ->
+         if
+         :: idle connection exists ->
+              reuse it and start work
+
+         :: no idle connection exists and a port is free ->
+              open a new connection and start work
+
+         :: no idle connection exists and no port is free ->
+              port_exhausted = true
+         fi
+
+         assert(ports_used <= port_limit)
+    od
+  }
+```
+
+The correctness property that checks bounded concurrency is violated when work in flight is more than the work limit and thus the issue is reproduced. (The model code linked below has many comments and among other things it points out areas where the problem occurs and how to fix it.) There is some more detail about it below. 
 
 For each work item, `Service` reuses an idle connection, opens a new one if a port is available, or records a failed dial when no port is available.
 
@@ -58,7 +119,44 @@ For each work item, `Service` reuses an idle connection, opens a new one if a po
 
 The `URI_Handler` also models an external shock event. The state of the shock reflects in the model system by setting a variable. 
 
-The buggy model can enter `loaded` and then stay there forever, because it only sheds load below the overload threshold.
+Here is the rough shape of the `URI_Handler`:
+
+```
+URI_Handler() {
+    do
+    :: work item is received from work_ch ->
+         finish that work item
+         record that it is no longer in flight
+         simulate releasing the active memcached connection used by it
+
+         if
+         :: idle pool has room ->
+              keep that memcached connection open for reuse
+
+         :: idle pool is full ->
+              close that memcached connection into TIME_WAIT
+         fi
+
+         assert(ports_used <= port_limit)
+
+    :: shock has not happened yet ->
+         shocked = true
+         load = thresh
+
+    :: some port is in TIME_WAIT ->
+         let one TIME_WAIT port expire
+
+    :: load is greater than zero and service is not loaded ->
+         shed some load
+    od
+  }
+```
+
+  The last branch is the bug in the model. It only sheds load when the service is below the loaded threshold. Once the model becomes `loaded`, this branch cannot run, so the service can stay
+  loaded forever. We have a liveness property, called `p2`, that will catch this (more on this in a bit).
+
+  The benefit of `::` and non-determinism is that Spin tries the different things that could happen next in the model: `Service` starting more work, `URI_Handler` finishing work, TIME_WAIT
+  ports expiring, or load being shed. This helps us find bugs caused by bad timing, such as `Service` starting more work before the handler has freed enough resources. 
 
 ### How the model models bounded concurrency
 
