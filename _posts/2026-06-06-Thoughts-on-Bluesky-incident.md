@@ -5,7 +5,7 @@ date: 2026-06-06
 categories: ["model-checking", "incidents"]
 ---
 
-Jim Calabro published a great post-mortem on Bluesky's April-2026 incident. I'm actually grateful for companies that operate at scale and publish their post-mortems; I always learn things from these reports that I didn't know before. 
+Jim Calabro published a great post-mortem on Bluesky's April-2026 incident. I'm actually grateful for companies that operate at scale and publish their post-mortems; I always learn things from these reports. 
 
 The root cause was an RPC handler with unbounded concurrency. According to the report:
 
@@ -17,19 +17,19 @@ The report also says:
 > This means that we'd launch 15-20 thousand goroutines for the request, slam the daylights out of memcached by dialing a ton of connections, then close and return them to the OS since our max idle conn pool size was 1000. They would build up in the TCP_TIME_WAIT state, and exhaust all available ports. 
 
 
-This later cascaded into several failures. The Go RPC handler logged many memcached errors, and those log writes used blocking system calls. The Go runtime responded by spawning many more OS threads, which increased pressure on the garbage collector. Because the service also had aggressive memory limits, it was OOM-killed repeatedly.
+This caused a chain of failures. The Go RPC handler logged many memcached errors, and those log writes used blocking system calls. The Go runtime then spawned many OS threads, which increased pressure on the garbage collector. The service was OOM-killed repeatedly because it also had aggressive memory limits.
 
-In hindsight it's easy to fix the past sitting in the present. And that's not the purpose of this post. Nor is my purpose to say, with hindsight, exactly what would have prevented it. I want to look at it from educational standpoint and ask myself, what can I learn from this to avoid similar mistakes while developing such systems in the future.
+In hindsight it's easy to fix the past sitting in the present. And that's not the purpose of this post. The purpose is to learn from this to avoid similar mistakes while developing such systems in the future.
 
-One possible learning path from such failures is to first model the system and try to reproduce the problem. It's not easy to learn from failure you cannot construct. Reproducing a failure makes it observable and you can learn a lot from an observable failure as you internalize what you must avoid in that context. In this post, we write a small Spin model to explore and reason about this class of failures (Spin is a model checker). 
+One possible way to learn from such failures is to first model the system and try to reproduce the problem. It's not easy to learn from failure you cannot construct. Reproducing a failure makes it observable and you can learn a lot from an observable failure as you internalize what you must avoid. In this post, we write a small Spin model to explore and reason about this class of failures (Spin is a model checker). 
 
-A model can help us test the correct properties and invariants we expect the system to satisfy. Writing the model also forces us to reason about correctness of our system. By specifying correctness properties of a model, model checker checks the model and produces a counterexample when a property fails.  
-
-
-From the incident report, we can extract bounded concurrency as a key correctness property of the system in question. Port exhaustion was another problem that emerged in the incident and so was excessive logging. Let's model the system so it can reproduce unbounded concurrency and port exhaustion and then address those; excessive logging is something which can be added to it later. The model would also show that the modeled system could not recover on its own. 
+Writing the model also forces us to reason about correctness of our system. A model can help us test the correct properties we expect the system to satisfy. The model checker validates the model against correctnes properties and produces a counterexample when a property fails.  
 
 
-Let's model the system as given in the Bluesky's incident report. We'll write correctness properties of the system first and then we'll write a model and using the model checker validate that the correctness properties hold. This is not a full simulation of Bluesky's production system; it is a small teaching model of the failure pattern. We'll use Spin as a model checker; I find SPIN especially approachable for teams that write Go, because Promela has familiar ideas such as processes and channels. Although teams could benefit from other model checkers like TLA+, P, FizzBee as well.
+From the incident report, we can model bounded concurrency as a key correctness property of the system. Port exhaustion was another problem that emerged in the incident and so was excessive logging. Let's model the system so it can reproduce unbounded concurrency and port exhaustion and then address those; excessive logging is something which we can add later. The model would also show that the modeled system could not recover on its own. 
+
+
+Let's model the system as given in the Bluesky's incident report. This is not a full simulation of Bluesky's production system; it is a small model, for learning purposes, to model the failures. We'll use Spin as a model checker; I find Spin approachable for teams that write Go, because Promela has familiar ideas such as processes and channels. Although teams could benefit from other model checkers like TLA+, P, FizzBee as well.
 
 
 Let's see how the model models bounded concurrency, port exhaustion, and recovery from failure. First, let's look at high level design of the model. 
@@ -44,18 +44,18 @@ The model also has three correctness properties that must hold in all reachable 
 - A memcached dial never fails because no idle connection is available and all modeled ports are already unavailable.
 - System recovers from stress. 
 
-`Service` produces work and sends it to the `URI_Handler` on a channel (channels are used to transfer messages between processes in Spin) and the handler consumes it. For the system's state, the number of work items in flight, system load are tracked in variables. The model tracks active ports, idle ports, and TIME_WAIT ports separately, and derives total port use from those counters.  
+`Service` produces work and sends it to the `URI_Handler` on a channel (channels are used to transfer messages between processes in Spin) and the handler consumes it. The number of work items in flight and system load are tracked in variables. The model tracks active ports, idle ports, and TIME_WAIT ports separately, and derives total port use from those counters.  
 
 ### How the Service works 
 
-`Service` starts a new batch only after all in-flight work from the previous batch has completed. The batch size and work limits are intentionally kept small to avoid state space explosion. Since we're trying to reproduce the issues, we don't check whether work in flight is less than the work limit and this helps us reproduce the unbounded concurrency issue. 
+`Service` starts a new batch only after all in-flight work from the previous batch has completed. The batch size and work limits are intentionally kept small to avoid state space explosion. Since we're trying to reproduce the issues, we don't check whether work in-flight is less than the work limit and this helps us reproduce the unbounded concurrency issue. 
 
-The `Service` models its work by processing three rounds of requests in a loop. In each round, it could three paths:
+The `Service` models its work by processing three rounds of requests in a loop. In each round, it could use one of three paths:
   - If idle ports are available, it uses an idle port and produces a work item.
   - If there is no idle port but there is an available port, it uses it and produces a work item. 
-  - If tehre is neither an idle port, nor any port available, it marks ports as exhausted. 
+  - If there is neither an idle port, nor any port available, it marks ports as exhausted. 
 
-Here is a rough code sketch, with mostly pseudocode mixed with some Spin/Promela concepts. Please note that :: are option sequences in a do loop in Promela. The first statement in option sequence is called a guard. An option sequence is executed if its guard is true. If more than guard is true at the same time, then one is selcted non-deterministically :
+Here is a rough code sketch, with mostly pseudocode mixed with some Spin/Promela concepts. Please note that `::` are option sequences in a do loop in Promela. The first statement in option sequence is called a guard. An option sequence is executed if its guard is true. If more than one guard is true at the same time, then one is selcted non-deterministically:
 
 ```Promela
 Service(){
