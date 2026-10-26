@@ -21,12 +21,12 @@ This caused a chain of failures. The Go RPC handler logged many memcached errors
 
 In hindsight it's easy to fix the past sitting in the present. And that's not the purpose of this post. The purpose is to learn from this to avoid similar mistakes.
 
-One possible way to learn from such failures is to first model the system and try to reproduce the problem. It's not easy to learn from failure you cannot construct. Reproducing a failure makes it observable and you can learn a lot from an observable failure as you develop a sense of what you must avoid. In this post, we write a small Spin model to explore and reason about this class of failures (Spin is a model checker). 
+One way to learn from a failure is to model the system using a model checker and try to reproduce the problem. By reproducing a failure you observe what works and what does not and this can help develop a sense of what you should avoid in future. In this post, we write a small Spin model to explore and reason about this class of failures (Spin is a model checker). 
 
-Why write and validate the model with a model checker? Writing the model also forces us to reason about correctness of our system. A model can help us test the correct properties we expect the system to satisfy. The model checker validates the model against correctnes properties and produces a counterexample when a property fails.  
+Why write and validate the model with a model checker? Writing the model forces us to reason about correctness of our system. The model checker can validate the model against correctness properties and produces a counterexample when a property fails.  
 
 
-From the incident report, we can model bounded concurrency as a key correctness property of the system. Port exhaustion was another problem that emerged in the incident and so was excessive logging. Let's model the system so it can reproduce unbounded concurrency and port exhaustion and then address those; excessive logging is something which we can add later. The model would also show that the modeled system could not recover on its own. 
+From the incident report, it's clear that unbounded concurrency was one of the key problems. We can write a model in which bounded concurrency is a correctness property that must hold in all states. Port exhaustion was another problem that emerged in the incident and so was excessive logging. Let's model the system so it can reproduce unbounded concurrency and port exhaustion and then we address those to ensure the model stops failing; excessive logging is something which we can add later. The model would also show how it could recover on its own when it receives a shock. 
 
 
 This is not a full simulation of Bluesky's production system; it is a small model, for learning purposes, to model the failures. As for using Spin, I find Spin approachable for teams that write Go, because Promela has familiar ideas such as processes and channels. Although teams could benefit from other model checkers like TLA+, P, FizzBee as well, I like them all.
@@ -139,7 +139,7 @@ URI_Handler() {
 
 ### How the model models bounded concurrency
 
-We have set a small work limit and the `Service` submits more work than the limit. `Service` can launch more work because its start-work guard does not enforce work limits. We have a system correctness property which ensures that concurrency remains bounded and work remains with a limit. As soon as we submit more work and system has to handle more work than the limit, this correctness property is violated. And when we run the model and ask the model checker to check this property, we see the violation. We explain this more below, including a visualization showing precisely how we're able to reproduce the problem using our model. 
+We have set a small work limit and the `Service` submits more work than the limit. `Service` can launch more work because its start-work guard does not enforce work limits. We have a system correctness property which ensures that concurrency remains bounded and work remains with a limit. As soon as we submit more work and system has to handle more work than the limit, this correctness property is violated. And when we run the model and ask the model checker to check this property, we see the violation. We explain this more below, we show with a visualisation how we're able to reproduce the problem using our model. 
 
 ### How the model models port exhaustion 
 
@@ -214,9 +214,9 @@ To check recovery, run `p2`. Spin reports an acceptance cycle: once the buggy mo
 
 The commands to run the model with correctness properties and to view the trail are given in comments in the model's code. In the repository, you will also find a model called `model_fixed.pml` [1, 2] that fixes the modeled failures by adding the concurrency guard and a recovery step; with those changes, all three checked properties pass.
 
-So why is the exercise useful? I learned from it. For one, I learned more about TCP so hopefully I will avoid some future mistakes. More importantly, if a team models such incidents, they can embed this learning in the design stage of their development. Such models, when run with model checkers, could also be useful for verification purposes and help ship systems that work. Not to say they always work and never break; sometimes they may fail but you learn from your mistakes and do more verification and such verification can help make your systems more robust, more resilient. 
+So why is the exercise useful? I learned from it. For one, I learned more about TCP so hopefully I will avoid some future mistakes. More importantly, if a team models such incidents, they can embed this learning in the design stage of their development. Teams could also use such models to test their designs before shipping code to production. Things may fail sometimes even when you use such models but you learn from your mistakes and improve your verification process, that in turn makes your systems more robust, more resilient. 
 
-If your team is writing code manually, you could check the implementation against the model to ensure that your implementation has the correctness properties as invariants in your code. And if your team is using AI, you could use the model as a validation artifact to ensure that the implementation not only implements those invariants but is also faithful to the model. If the selected correctness properties hold for this finite model, it does not mean the implementation is bug-free. But if you validate your implementation against this model, then at least, as has been the case in my experience, it can catch many issues that would be easier to miss without the model.
+If your team is writing code manually, you could check the implementation against the model to ensure that your implementation has the correctness properties as invariants in your code. And if your team is using AI, you could use such models to validate that the implementation is also faithful to the model and invariants hold. If the selected correctness properties hold for this finite model, it does not mean the implementation is bug-free. But if you validate your implementation against this model, then at least, as has been the case in my experience, it can catch many issues that would be easier to miss without the model.
 
 
 # References 
