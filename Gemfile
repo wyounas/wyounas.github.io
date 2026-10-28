@@ -1,5 +1,5 @@
 source "https://rubygems.org"
 
-gem "github-pages", group: :jekyll_plugins
-gem "jekyll-paginate"
-gem "rouge"
+gem "jekyll", "~> 4.4"
+gem "jekyll-paginate", "~> 1.1"
+gem "rouge", "~> 4.0"

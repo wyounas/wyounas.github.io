@@ -1,5 +1,8 @@
 _site/
 _drafts/
 .jekyll-metadata
-Gemfile.lock
+.bundle/
+.jekyll-cache/
+.sass-cache/
+vendor/
 .DS_Store
