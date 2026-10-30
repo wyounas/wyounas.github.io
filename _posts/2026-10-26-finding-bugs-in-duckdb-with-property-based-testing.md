@@ -21,7 +21,7 @@ COPY (SELECT 1 AS a) TO 'out.json' (FORMAT JSON, use_tmp_file);
 
 _FORMAT JSON_ option lists the file format we want and `use_tmp_file`, a boolean, enables writing the data to a temporary file; only once that file is complete does it write to `out.json`. 
 
-One of the first bugs we found came from giving a NULL value to `use_tmp_file` instead of a boolean in a `COPY ... TO` command. When the property-based test ran it, DuckDB failed with the error:
+One of the first bugs we found came from a `COPY ... TO` command containing `use_tmp_file NULL`. When the property-based test ran it, DuckDB failed with the error:
 ```
 INTERNAL Error: Calling GetValueInternal on a value that is NULL
 ```
