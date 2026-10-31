@@ -28,7 +28,7 @@ INTERNAL Error: Calling GetValueInternal on a value that is NULL
 
 How did we write that property-based test? I have been using Hypothesis, a Python based property-testing framework, for the last couple of years and I find it very useful for not only testing systems with combinatorially many random inputs but also letting the code express all this magic in a less obscure way.
 
-The idea is that you write invariants that must hold and then you try all kinds of inputs on your code and ensure that invariants hold. There were two main components of the code. The first component acted as a generator, and the second as a manager reporting on the success or failure of the operation being run. The generator produced a lot of `COPY ... TO` commands with different kinds of inputs plugged into the command’s options, and the manager ran these against DuckDB and reported success or failure. An invalid input caused an internal error. 
+The idea is that you write invariants that must hold and then you try all kinds of inputs on your code and ensure that invariants hold. There were two main components of the code. The first component acted as a generator, and the second as a manager reporting on the success or failure of the operation being run. The generator produced a lot of `COPY ... TO` commands with different kinds of inputs plugged into the command’s options, and the manager ran these against DuckDB and reported success or failure. Invalid inputs should produce a normal error, but one caused an internal error instead.
 
 Just to give an idea, here is the simplified code that could generate such data:
 
