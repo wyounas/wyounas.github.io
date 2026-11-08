@@ -8,7 +8,7 @@ DuckDB is a widely used database and a personal favorite. I recently found some 
 
 In total, I found 5 bugs, four of which were related to the `COPY ... TO` command and the remaining one was a different issue. Let’s look at these one by one.
 
-DuckDB has a `COPY ... TO` command which writes query's results to a fil. For example, its template looks like this:
+DuckDB has a `COPY ... TO` command which writes query's results to a file. For example, its template looks like this:
 ```sql
 COPY (SELECT 1 AS a) TO 'out.json' (..., ...);
 -- (..., ...) placeholder for the options the command accepts
